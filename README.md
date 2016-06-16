@@ -1,4 +1,4 @@
-# purescript-argonaut-codecs
+# purescript-argonaut-generic-codecs
 
 <!-- [![Latest release](http://img.shields.io/bower/v/purescript-argonaut-codecs.svg)](https://github.com/slamdata/purescript-argonaut-codecs/releases) -->
 <!-- [![Build Status](https://travis-ci.org/purescript-contrib/purescript-argonaut-codecs.svg?branch=master)](https://travis-ci.org/purescript-contrib/purescript-argonaut-codecs) -->
