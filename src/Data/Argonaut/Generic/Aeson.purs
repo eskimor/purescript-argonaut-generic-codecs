@@ -1,11 +1,11 @@
 -- Haskell Aeson compatible encoding/decoding:
 
-module Data.Argonaut.Aeson
-  ( gAesonEncodeJson
-  , gAesonDecodeJson
-  , aesonOptions
-  , aesonUserEncoding
-  , aesonUserDecoding
+module Data.Argonaut.Generic.Aeson
+  ( encodeJson
+  , decodeJson
+  , options
+  , userEncoding
+  , userDecoding
   ) where
 
 import Prelude
@@ -19,7 +19,7 @@ import Data.Either (Either(), either)
 import Data.Foldable (foldr)
 import Data.Generic (Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
 import Data.Int (toNumber)
-import Data.List (List(..), fromList)
+import Data.List (List(..), fromList, fromFoldable)
 import Data.List as L
 import Data.Map as M
 import Data.Either (Either(..))
@@ -31,24 +31,24 @@ import Data.Tuple (Tuple(..))
 import Type.Proxy (Proxy(..))
 import Data.Tuple (uncurry)
 import Data.Array (length, concatMap, filter, zip, zipWith)
-import qualified Data.Array.Unsafe as Unsafe
+import Data.Array.Unsafe as Unsafe
 import Partial.Unsafe (unsafeCrashWith)
 
 
 -- | Options for aeson compatible encoding/decoding.
-aesonOptions :: Options
-aesonOptions = Options {
+options :: Options
+options = Options {
   constructorTagModifier : stripModulePath
 , allNullaryToStringTag  : true
-, sumEncoding            : aesonSumEncoding
+, sumEncoding            : sumEncoding
 , flattenContentsArray   : true
 , unwrapUnaryRecords     : true
-, userEncoding           : aesonUserEncoding
-, userDecoding           : aesonUserDecoding
+, userEncoding           : userEncoding
+, userDecoding           : userDecoding
 }
 
-aesonSumEncoding :: SumEncoding
-aesonSumEncoding = TaggedObject {
+sumEncoding :: SumEncoding
+sumEncoding = TaggedObject {
   tagFieldName           : "tag"
 , contentsFieldName      : "contents"
 }
@@ -56,23 +56,23 @@ aesonSumEncoding = TaggedObject {
 -- | Encode `Json` representation of a value which has a `Generic` type
 -- | with Aeson options. The encoded data will be compatible with Haskell Aeson,
 -- | if Aeson default options are used.
-gAesonEncodeJson :: forall a. (Generic a) => a -> Json
-gAesonEncodeJson = genericEncodeJson aesonOptions
+encodeJson :: forall a. (Generic a) => a -> Json
+encodeJson = genericEncodeJson options
 
 -- | Decode `Json` representation of a value which has a `Generic` type
 -- | with Aeson options. Data from Haskell, with Aeson default options can be
 -- | decoded with gAesonDecodJson.
-gAesonDecodeJson :: forall a. (Generic a) => Json -> Either String a
-gAesonDecodeJson = genericDecodeJson aesonOptions
+decodeJson :: forall a. (Generic a) => Json -> Either String a
+decodeJson = genericDecodeJson options
 
 
-aesonUserEncoding :: Options -> GenericSignature -> GenericSpine -> Maybe Json
-aesonUserEncoding opts sig spine = encodeMaybe opts sig spine
+userEncoding :: Options -> GenericSignature -> GenericSpine -> Maybe Json
+userEncoding opts sig spine = encodeMaybe opts sig spine
                                <|> encodeEither opts sig spine
                                <|> fromArray <$> encodeTuple opts sig spine
 
-aesonUserDecoding :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
-aesonUserDecoding opts sig json = decodeMaybe opts sig json
+userDecoding :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
+userDecoding opts sig json = decodeMaybe opts sig json
                               <|> decodeEither opts sig json
                               <|> decodeTuple opts sig json
 
@@ -132,7 +132,7 @@ encodeTuple opts (SigProd "Data.Tuple.Tuple" sigArr) (SProd "Data.Tuple.Tuple" a
     encodeTupleArgs opts signatures spines -- Or just encode arguments
   where
     signatures = getSigsFromConstructor sigArr "Data.Tuple.Tuple"
-    spines = map ($ unit) arr
+    spines = map (_ $ unit) arr
 encodeTuple _ _ _ = Nothing
 
 decodeTuple :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
@@ -163,9 +163,9 @@ getSigFromUnaryConstructor arr name = Unsafe.head $ getSigsFromConstructor arr n
 getSigsFromConstructor :: Array DataConstructor -> String -> Array GenericSignature
 getSigsFromConstructor arr name =
   let
-    constr = Unsafe.head <<< filter ((== name) <<< _.sigConstructor) $ arr
+    constr = Unsafe.head <<< filter ((_ == name) <<< _.sigConstructor) $ arr
   in
-    map ($ unit) constr.sigValues
+    map (_ $ unit) constr.sigValues
 
 getNestedTupleSigs :: Array GenericSignature -> List GenericSignature
 getNestedTupleSigs = L.reverse <<< getNestedTupleSigs'
@@ -177,4 +177,4 @@ getNestedTupleSigs' [val1, val2] = case val1 of
   _                                -> Cons val2 (Cons val1 Nil)
 
 arrToList :: forall a. Array a -> List a
-arrToList = foldr Cons Nil
+arrToList = fromFoldable

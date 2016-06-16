@@ -1,4 +1,6 @@
-module Data.Argonaut.Decode
+-- | Flexible generic decoding. Use this for defining your own custom encodings
+-- | or use "Data.Argonaut.Generic.Aeson" and "Data.Argonaut.Generic.Argonaut" for concrete codecs.
+module Data.Argonaut.Generic.Decode
   ( DecodeJson
   , decodeJson
   , gDecodeJson
@@ -15,7 +17,7 @@ import Prelude
 import Control.Alt ((<|>))
 import Control.Bind ((=<<))
 import Data.Argonaut.Core (Json(), isNull, foldJsonNull, foldJsonBoolean, foldJsonNumber, foldJsonString, toArray, toNumber, toObject, toString, toBoolean)
-import Data.Argonaut.Options
+import Data.Argonaut.Generic.Options
 import Data.Array (zipWithA, length)
 import Data.Either (either, Either(..))
 import Data.Foldable (find)
@@ -30,15 +32,8 @@ import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Proxy (Proxy(..))
-import qualified Data.Array.Unsafe as Unsafe
+import Data.Array.Unsafe as Unsafe
 
-class DecodeJson a where
-  decodeJson :: Json -> Either String a
-
--- | Decode `Json` representation of a value which has a `Generic` type
--- | with Argonaut options.
-gDecodeJson :: forall a. (Generic a) => Json -> Either String a
-gDecodeJson = genericDecodeJson argonautOptions
 
 -- | Decode `Json` representation of a value which has a `Generic` type.
 genericDecodeJson :: forall a. (Generic a) => Options -> Json -> Either String a
@@ -46,7 +41,7 @@ genericDecodeJson opts json = maybe (Left "fromSpine failed") Right <<< fromSpin
                 =<< genericUserDecodeJson' opts (toSignature (Proxy :: Proxy a)) json
 
 
--- | Generically encode to json, using a supplied userEncoding, falling back to genericEncodeJson':
+-- | Generically decode json, using a supplied userEncoding, falling back to genericEncodeJson':
 genericUserDecodeJson' :: Options -> GenericSignature -> Json -> Either String GenericSpine
 genericUserDecodeJson' opts'@(Options opts) sign json = fromMaybe (genericDecodeJson' opts' sign json)
                                                         (opts.userDecoding opts' sign json)
@@ -60,6 +55,7 @@ genericDecodeJson' opts signature json = case signature of
  SigString -> SString <$> mFail "Expected a string" (toString json)
  SigChar -> SChar <$> mFail "Expected a char" (toChar =<< toString json)
  SigBoolean -> SBoolean <$> mFail "Expected a boolean" (toBoolean json)
+ SigUnit -> pure SUnit
  SigArray thunk -> do
    jArr <- mFail "Expected an array" $ toArray json
    SArray <$> traverse (map const <<< genericUserDecodeJson' opts (thunk unit)) jArr
@@ -108,79 +104,8 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json =
     tagL = sumConf.tagFieldName
     contL = sumConf.contentsFieldName
     findConstrFail tag = mFail (decodingErr ("'" <> tag <> "' isn't a valid constructor")) (findConstr tag)
-    findConstr tag = find ((tag ==) <<< fixConstr <<< _.sigConstructor) constrSigns
+    findConstr tag = find ((tag == _) <<< fixConstr <<< _.sigConstructor) constrSigns
 
-instance decodeJsonMaybe :: (DecodeJson a) => DecodeJson (Maybe a) where
-  decodeJson j
-    | isNull j = pure Nothing
-    | otherwise = (Just <$> decodeJson j) <|> (pure Nothing)
-
-instance decodeJsonTuple :: (DecodeJson a, DecodeJson b) => DecodeJson (Tuple a b) where
-  decodeJson j = decodeJson j >>= f
-    where
-    f (Cons a (Cons b Nil)) = Tuple <$> decodeJson a <*> decodeJson b
-    f _ = Left "Couldn't decode Tuple"
-
-instance decodeJsonEither :: (DecodeJson a, DecodeJson b) => DecodeJson (Either a b) where
-  decodeJson j =
-    case toObject j of
-      Just obj -> do
-        tag <- just (M.lookup "tag" obj)
-        val <- just (M.lookup "value" obj)
-        case toString tag of
-          Just "Right" ->
-            Right <$> decodeJson val
-          Just "Left" ->
-            Left <$> decodeJson val
-          _ ->
-            Left "Couldn't decode Either"
-      _ ->
-        Left "Couldn't decode Either"
-    where
-    just (Just x) = Right x
-    just Nothing  = Left "Couldn't decode Either"
-
-instance decodeJsonNull :: DecodeJson Unit where
-  decodeJson = foldJsonNull (Left "Not null") (const $ Right unit)
-
-instance decodeJsonBoolean :: DecodeJson Boolean where
-  decodeJson = foldJsonBoolean (Left "Not a Boolean") Right
-
-instance decodeJsonNumber :: DecodeJson Number where
-  decodeJson = foldJsonNumber (Left "Not a Number") Right
-
-instance decodeJsonInt :: DecodeJson Int where
-  decodeJson num = foldJsonNumber (Left "Not a Number") go num
-    where go num = maybe (Left "Not an Int") Right $ fromNumber num
-
-instance decodeJsonString :: DecodeJson String where
-  decodeJson = foldJsonString (Left "Not a String") Right
-
-instance decodeJsonJson :: DecodeJson Json where
-  decodeJson = Right
-
-instance decodeJsonChar :: DecodeJson Char where
-  decodeJson j = (charAt 0 <$> decodeJson j) >>= go where
-    go Nothing  = Left $ "Expected character but found: " ++ show j
-    go (Just c) = Right c
-
-instance decodeStrMap :: (DecodeJson a) => DecodeJson (M.StrMap a) where
-  decodeJson json = maybe (Left "Couldn't decode StrMap") Right $ do
-    obj <- toObject json
-    traverse decodeMaybe obj
-
-instance decodeArray :: (DecodeJson a) => DecodeJson (Array a) where
-  decodeJson json = maybe (Left "Couldn't decode Array") Right $ do
-    obj <- toArray json
-    traverse decodeMaybe obj
-
-instance decodeList :: (DecodeJson a) => DecodeJson (List a) where
-  decodeJson json = maybe (Left "Couldn't decode List") Right $ do
-    lst <- toList <$> toArray json
-    traverse decodeMaybe lst
-
-instance decodeMap :: (Ord a, DecodeJson a, DecodeJson b) => DecodeJson (Map.Map a b) where
-  decodeJson j = Map.fromList <$> decodeJson j
 
 decodeMaybe :: forall a. (DecodeJson a) => Json -> Maybe a
 decodeMaybe json = either (const Nothing) pure $ decodeJson json

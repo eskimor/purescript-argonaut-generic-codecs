@@ -1,18 +1,18 @@
-module Data.Argonaut.Options where
+-- | Options for generic encoding/decoding.
+--
+--   By the means of `userEncoding`  and `userDecoding` you can provide custom rules
+--   for certain data types instead of using the default generic encoding.
+module Data.Argonaut.Generic.Options where
 
-import Prelude
+
 import Data.Argonaut.Core (Json())
-import Data.Foldable (all)
-import Data.String (lastIndexOf, drop)
-import Data.Generic (DataConstructor())
-import Data.Array (null, length)
-import Data.Generic (Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
-import Data.Either (Either(..))
+import Data.Generic (GenericSpine, GenericSignature)
+import Data.Either (Either)
 import Data.Maybe (Maybe(..))
 
 
 newtype Options = Options { -- newtype necessary to avoid: https://github.com/purescript/purescript/wiki/Error-Code-CycleInTypeSynonym
-  -- | Modify the tag, e.g. strip module path with: `stripModulePath`
+  -- | Modify the tag, e.g. strip module path with: `stripModulePath`e
   constructorTagModifier  :: String -> String
   -- | If all constructors of a sum type are nullary, just serialize the constructor name as a string.
 , allNullaryToStringTag   :: Boolean
@@ -24,6 +24,7 @@ newtype Options = Options { -- newtype necessary to avoid: https://github.com/pu
   -- | to true if you want the plain Javascript object without a wrapping tagged object.
 , unwrapUnaryRecords :: Boolean
 -- | You can choose to encode some data types differently than the generic default.
+-- | Find a thorough example for doing this in "Data.Argonaut.Generic.Aeson"!
 -- | Just return Nothing if you want to relay to generic encoding.
 , userEncoding :: Options -> GenericSignature -> GenericSpine -> Maybe Json
 -- | You can choose to decode some data types differently than the generic default.
@@ -42,38 +43,11 @@ data SumEncoding =
   , contentsFieldName :: String
   }
 
--- | Default for straight forward argonaut encoding.
-argonautOptions :: Options
-argonautOptions = Options {
-  constructorTagModifier : id
-, allNullaryToStringTag  : false
-, sumEncoding            : argonautSumEncoding
-, flattenContentsArray   : false
-, unwrapUnaryRecords     : false
-, userEncoding           : dummyUserEncoding
-, userDecoding           : dummyUserDecoding
-}
 
-argonautSumEncoding :: SumEncoding
-argonautSumEncoding = TaggedObject {
-  tagFieldName           : "tag"
-, contentsFieldName      : "values"
-}
-
+-- | Use this for `userEncoding` if you don't want any special rules.
 dummyUserEncoding :: Options -> GenericSignature -> GenericSpine -> Maybe Json
 dummyUserEncoding _ _ _ = Nothing
 
+-- | Use this for `userDecodeing` if you don't want any special rules.
 dummyUserDecoding :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
 dummyUserDecoding _ _ _ = Nothing
-
-allConstructorsNullary :: Array DataConstructor -> Boolean
-allConstructorsNullary = all (null <<< _.sigValues)
-
-isUnaryRecord :: Array DataConstructor -> Boolean
-isUnaryRecord constrSigns = length constrSigns == 1 -- Only one constructor
-                            && all ((== 1) <<< length <<< _.sigValues)  constrSigns -- Only one parameter
-
-stripModulePath :: String -> String
-stripModulePath constr = case lastIndexOf "." constr of
-                    Nothing -> constr
-                    Just i -> drop (i+1) constr

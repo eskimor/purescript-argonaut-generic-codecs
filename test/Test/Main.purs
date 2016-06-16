@@ -4,10 +4,8 @@ import Prelude
 
 import Data.Argonaut.Core hiding (toNumber)
 import Data.Argonaut.Options
-import Data.Argonaut.Aeson
-import Data.Argonaut.Decode (decodeJson, DecodeJson, genericDecodeJson, genericDecodeJson')
-import Data.Argonaut.Encode (encodeJson, EncodeJson, genericEncodeJson, genericEncodeJson')
-import Data.Argonaut.Combinators ((:=), (~>), (?>>=))
+import Data.Argonaut.Aeson as Aeson
+import Data.Argonaut.Argonaut as Argonaut
 import Data.Either
 import Data.Int (toNumber)
 import Data.Tuple
@@ -29,114 +27,6 @@ import Test.StrongCheck
 import Test.StrongCheck.Gen
 import Test.StrongCheck.Generic
 
-genJNull :: Gen Json
-genJNull = pure jsonNull
-
-genJBool :: Gen Json
-genJBool = fromBoolean <$> arbitrary
-
-genJNumber :: Gen Json
-genJNumber = fromNumber <$> arbitrary
-
-genJString :: Gen Json
-genJString = fromString <$> arbitrary
-
-genJArray :: Size -> Gen Json
-genJArray sz = fromArray <$> vectorOf sz (genJson $ sz - 1)
-
-genJObject :: Size -> Gen Json
-genJObject sz = do
-  v <- vectorOf sz (genJson $ sz - 1)
-  k <- vectorOf (length v) (arbitrary :: Gen AlphaNumString)
-  return $  let f (AlphaNumString s) = s ++ "x"
-                k' = f <$> k
-            in  fromObject <<< M.fromList <<< toList <<< nubBy (\a b -> (fst a) == (fst b)) $ zipWith Tuple k' v
-
-genJson :: Size -> Gen Json
-genJson 0 = oneOf genJNull [genJBool, genJNumber, genJString]
-genJson n = frequency (Tuple 1.0 genJNull) rest where
-  rest = toList [Tuple 2.0 genJBool,
-                 Tuple 2.0 genJNumber,
-                 Tuple 3.0 genJString,
-                 Tuple 1.0 (genJArray n),
-                 Tuple 1.0 (genJObject n)]
-
-newtype TestJson = TestJson Json
-
-instance arbitraryTestJson :: Arbitrary TestJson where
-  arbitrary = TestJson <$> sized genJson
-
-
-prop_encode_then_decode :: TestJson -> Boolean
-prop_encode_then_decode (TestJson json) =
-  Right json == (decodeJson $ encodeJson $ json)
-
-prop_decode_then_encode :: TestJson -> Boolean
-prop_decode_then_encode (TestJson json) =
-  let decoded = (decodeJson json) :: Either String Json in
-  Right json == (decoded >>= (encodeJson >>> pure))
-
-encodeDecodeCheck :: forall e. Eff ( err :: EXCEPTION, random :: RANDOM, console :: CONSOLE | e ) Unit
-encodeDecodeCheck = do
-  log "Showing small sample of JSON"
-  showSample (genJson 10)
-
-  log "Testing that any JSON can be encoded and then decoded"
-  quickCheck' 20 prop_encode_then_decode
-
-  log "Testing that any JSON can be decoded and then encoded"
-  quickCheck' 20 prop_decode_then_encode
-
-prop_assoc_builder_str :: Tuple String String -> Boolean
-prop_assoc_builder_str (Tuple key str) =
-  case (key := str) of
-    Tuple k json ->
-      (key == k) && (decodeJson json == Right str)
-
-newtype Obj = Obj Json
-unObj :: Obj -> Json
-unObj (Obj j) = j
-
-instance arbitraryObj :: Arbitrary Obj where
-  arbitrary = Obj <$> (genJObject 5)
-
-
-prop_assoc_append :: (Tuple (Tuple String TestJson) Obj) -> Boolean
-prop_assoc_append (Tuple (Tuple key (TestJson val)) (Obj obj)) =
-  let appended = assoc ~> obj
-      assoc = Tuple key val
-  in case toObject appended >>= M.lookup key of
-    Just val -> true
-    _ -> false
-
-
-prop_get_jobject_field :: Obj -> Boolean
-prop_get_jobject_field (Obj obj) =
-  maybe false go $ toObject obj
-  where
-  go :: JObject -> Boolean
-  go obj =
-    let keys = M.keys obj
-    in foldl (\ok key -> ok && (isJust $ M.lookup key obj)) true keys
-
-assert_maybe_msg :: Boolean
-assert_maybe_msg =
-  (isLeft (Nothing ?>>= "Nothing is Left"))
-  &&
-  ((Just 2 ?>>= "Nothing is left") == Right 2)
-
-
-
-combinatorsCheck :: forall e. Eff ( err :: EXCEPTION, random :: RANDOM, console :: CONSOLE | e ) Unit
-combinatorsCheck = do
-  log "Check assoc builder `:=`"
-  quickCheck' 20 prop_assoc_builder_str
-  log "Check JAssoc append `~>`"
-  quickCheck' 20 prop_assoc_append
-  log "Check get field `obj .? 'foo'`"
-  quickCheck' 20 prop_get_jobject_field
-  log "Assert maybe to either convertion"
-  assert assert_maybe_msg
 
 newtype MyRecord = MyRecord { foo :: String, bar :: Int}
 derive instance genericMyRecord :: Generic MyRecord
@@ -167,6 +57,7 @@ newtype NewTypeWrapper1 = NewTypeWrapper1 { test :: String }
 derive instance genericNewTypeWrapper1 :: Generic NewTypeWrapper1
 instance eqNewTypeWrapper1 :: Eq NewTypeWrapper1 where
   eq = gEq
+
 data NewTypeWrapper2 = NewTypeWrapper2 {test :: Int}
 derive instance genericNewTypeWrapper2 :: Generic NewTypeWrapper2
 instance eqNewTypeWrapper2 :: Eq NewTypeWrapper2 where
@@ -191,15 +82,15 @@ checkAesonCompat =
     myLeft = Left "Foo" :: Either String String
     myRight = Right "Bar" :: Either Int String
   in
-        gAesonEncodeJson myTuple   == fromArray [fromNumber $ toNumber 1, fromNumber $ toNumber 2, fromString "Hello"]
-    &&  gAesonEncodeJson myJust    == fromString "Test"
-    &&  gAesonEncodeJson myNothing == jsonNull
-    &&  gAesonEncodeJson myLeft    == fromObject (SM.fromList (Tuple "Left" (fromString "Foo") `Cons` Nil))
-    &&  gAesonEncodeJson myRight   == fromObject (SM.fromList (Tuple "Right" (fromString "Bar") `Cons` Nil))
+        Aeson.encodeJson myTuple   == fromArray [fromNumber $ toNumber 1, fromNumber $ toNumber 2, fromString "Hello"]
+    &&  Aeson.encodeJson myJust    == fromString "Test"
+    &&  Aeson.encodeJson myNothing == jsonNull
+    &&  Aeson.encodeJson myLeft    == fromObject (SM.fromList (Tuple "Left" (fromString "Foo") `Cons` Nil))
+    &&  Aeson.encodeJson myRight   == fromObject (SM.fromList (Tuple "Right" (fromString "Bar") `Cons` Nil))
 
 
 genericsCheck :: forall e. Options -> Eff ( err :: EXCEPTION , random :: RANDOM , console :: CONSOLE, assert :: ASSERT | e) Unit
-genericsCheck opts= do
+genericsCheck opts = do
   let vNullary = Nullary2
   let mArgs = MArgs 9 20 "Hello"
   let ntw1 = NewTypeWrapper1 { test : "hello" }
@@ -257,28 +148,15 @@ genericsCheck opts= do
     valEncodeDecode :: forall a. (Eq a, Generic a) => Options ->  a -> Boolean
     valEncodeDecode opts val = ((Right val) ==) <<< genericDecodeJson opts <<< genericEncodeJson opts $ val
 
-eitherCheck :: forall e. Eff ( err :: EXCEPTION, random :: RANDOM, console :: CONSOLE | e ) Unit
-eitherCheck = do
-  log "Test EncodeJson/DecodeJson Either instance"
-  quickCheck \(x :: Either String String) ->
-    case decodeJson (encodeJson x) of
-      Right decoded ->
-        decoded == x
-          <?> ("x = " <> show x <> ", decoded = " <> show decoded)
-      Left err ->
-        false <?> err
 
 main:: forall e. Eff ( err :: EXCEPTION, random :: RANDOM, console :: CONSOLE, assert :: ASSERT | e ) Unit
 main = do
-  eitherCheck
-  encodeDecodeCheck
-  combinatorsCheck
   assert' "aesonCompatcheck: " checkAesonCompat
   log "genericsCheck check for argonautOptions"
-  genericsCheck argonautOptions
+  genericsCheck Argonaut.options
   log "genericsCheck check for aesonOptions"
-  genericsCheck aesonOptions
+  genericsCheck Aeson.options
   log "genericsCheck check for unwrapUnaryOptions"
-  let unwrapOpts = case aesonOptions of Options a -> a
+  let unwrapOpts = case Aeson.options of Options a -> a
   let unwrapUnaryOptions = Options $ unwrapOpts { unwrapUnaryRecords = true }
   genericsCheck unwrapUnaryOptions

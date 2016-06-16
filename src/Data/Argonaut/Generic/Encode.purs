@@ -1,47 +1,40 @@
-module Data.Argonaut.Encode
-  ( EncodeJson
-  , encodeJson
-  , gEncodeJson
-  , genericEncodeJson
+-- | Flexible generic encoding. Use this for defining your own custom encodings
+-- | or use "Data.Argonaut.Generic.Aeson" and "Data.Argonaut.Generic.Argonaut" for concrete codecs.
+module Data.Argonaut.Generic.Encode
+  (
+    genericEncodeJson
   , genericEncodeJson'
   , genericUserEncodeJson'
-  , module Data.Argonaut.Options
+  , module Data.Argonaut.Generic.Options
   ) where
 
 import Prelude
 
 import Data.Argonaut.Core (Json(), jsonNull, fromBoolean, fromNumber, fromString, fromArray, fromObject)
-import Data.Argonaut.Options
+import Data.Argonaut.Generic.Options
 import Data.Either (Either(), either)
 import Data.Foldable (foldr)
-import Data.Generic (Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
+import Data.Generic (class Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
 import Data.Int (toNumber)
-import Data.List (List(..), fromList)
+import Data.List (List(..), fromFoldable)
 import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.String (fromChar)
+import Data.String (singleton)
 import Data.StrMap as SM
 import Data.Tuple (Tuple(..))
 import Type.Proxy (Proxy(..))
 import Data.Tuple (uncurry)
 import Data.Array (length, concatMap, filter, zip, zipWith)
-import qualified Data.Array.Unsafe as Unsafe
+import Data.Array.Partial as Unsafe
 import Partial.Unsafe (unsafeCrashWith)
 
-class EncodeJson a where
-  encodeJson :: a -> Json
-
--- | Encode any `Generic` data structure into `Json`,
--- | formatted according to argonautOptions
-gEncodeJson :: forall a. (Generic a) => a -> Json
-gEncodeJson = genericEncodeJson argonautOptions
 
 genericEncodeJson :: forall a. (Generic a) => Options -> a -> Json
 genericEncodeJson opts = genericUserEncodeJson' opts sign <<< toSpine
   where sign = toSignature (Proxy :: Proxy a)
 
 
--- | Generically encode to json, using a supplied userEncoding, falling back to genericEncodeJson':
+-- | Generically encode to json, using a supplied `userEncoding`, falling back to `genericEncodeJson'`:
 genericUserEncodeJson' :: Options -> GenericSignature -> GenericSpine -> Json
 genericUserEncodeJson' opts'@(Options opts) sign spine = fromMaybe (genericEncodeJson' opts' sign spine)
                                                         (opts.userEncoding opts' sign spine)
@@ -53,11 +46,12 @@ genericEncodeJson' :: Options -> GenericSignature -> GenericSpine -> Json
 genericEncodeJson' opts sign spine = case spine of
  SInt x            -> fromNumber $ toNumber x
  SString x         -> fromString x
- SChar x           -> fromString $ fromChar x
+ SChar x           -> fromString $ singleton x
  SNumber x         -> fromNumber x
  SBoolean x        -> fromBoolean x
+ SUnit             -> jsonNull
  SArray thunks     -> case sign of
-                        SigArray elemSign -> fromArray (genericUserEncodeJson' opts (elemSign unit) <<< (unit #) <$> thunks)
+                        SigArray elemSign -> fromArray (genericUserEncodeJson' opts (elemSign unit) <<< (unit # _) <$> thunks)
                         _ -> unsafeCrashWith "Signature does not match value, please don't do that!"
  SProd constr args -> case sign of
                         SigProd _ constrSigns -> genericEncodeProdJson' opts constrSigns constr args
@@ -103,57 +97,5 @@ genericEncodeProdArgs opts constrSigns constr args = zipWith (genericUserEncodeJ
   where
    lSigValues = concatMap (\c -> c.sigValues)
                    <<< filter (\c -> c.sigConstructor == constr) $ constrSigns
-   sigValues = (unit #) <$> lSigValues
-   values = (unit #) <$> args
-
-
-instance encodeJsonMaybe :: (EncodeJson a) => EncodeJson (Maybe a) where
-  encodeJson Nothing  = jsonNull
-  encodeJson (Just a) = encodeJson a
-
-instance encodeJsonTuple :: (EncodeJson a, EncodeJson b) => EncodeJson (Tuple a b) where
-  encodeJson (Tuple a b) = encodeJson [encodeJson a, encodeJson b]
-
-instance encodeJsonEither :: (EncodeJson a, EncodeJson b) => EncodeJson (Either a b) where
-  encodeJson = either (obj "Left") (obj "Right")
-    where
-    obj :: forall c. (EncodeJson c) => String -> c -> Json
-    obj tag x =
-      fromObject $ SM.fromList $
-        Cons (Tuple "tag" (fromString tag)) (Cons (Tuple "value" (encodeJson x)) Nil)
-
-instance encodeJsonUnit :: EncodeJson Unit where
-  encodeJson = const jsonNull
-
-instance encodeJsonJBoolean :: EncodeJson Boolean where
-  encodeJson = fromBoolean
-
-instance encodeJsonJNumber :: EncodeJson Number where
-  encodeJson = fromNumber
-
-instance encodeJsonInt :: EncodeJson Int where
-  encodeJson = fromNumber <<< toNumber
-
-instance encodeJsonJString :: EncodeJson String where
-  encodeJson = fromString
-
-instance encodeJsonJson :: EncodeJson Json where
-  encodeJson = id
-
-instance encodeJsonChar :: EncodeJson Char where
-  encodeJson = encodeJson <<< fromChar
-
-instance encodeJsonArray :: (EncodeJson a) => EncodeJson (Array a) where
-  encodeJson json = fromArray (encodeJson <$> json)
-
-instance encodeJsonList :: (EncodeJson a) => EncodeJson (List a) where
-  encodeJson json =
-    let arr :: Array a
-        arr = fromList json
-    in fromArray (encodeJson <$> arr)
-
-instance encodeStrMap :: (EncodeJson a) => EncodeJson (SM.StrMap a) where
-  encodeJson m = fromObject (encodeJson <$> m)
-
-instance encodeMap :: (Ord a, EncodeJson a, EncodeJson b) => EncodeJson (M.Map a b) where
-  encodeJson = encodeJson <<< M.toList
+   sigValues = (unit # _) <$> lSigValues
+   values = (unit # _) <$> args

@@ -1,12 +1,13 @@
 {
-  "name": "purescript-argonaut-codecs",
-  "homepage": "https://github.com/purescript-contrib/purescript-argonaut-codecs",
+  "name": "purescript-argonaut-generic-codecs",
+  "homepage": "https://github.com/eskimor/purescript-argonaut-generic-codecs",
   "authors": [
     "Maxim Zimaliev <zimaliev@yandex.ru>",
     "Hardy Jones <>",
-    "John A. De Goes <john@degoes.net>"
+    "John A. De Goes <john@degoes.net>",
+    "Robert Klotzner <robert.klotzner AT gmx.at>"
   ],
-  "description": "Codecs for purescript argonaut",
+  "description": "Generic codecs for purescript argonaut",
   "keywords": [
     "purescript",
     "json",
@@ -18,17 +19,18 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git://github.com/purescript-contrib/purescript-argonaut-codecs.git"
+    "url": "git://github.com/eskimor/purescript-argonaut-generic-codecs.git"
   },
   "license": "MIT",
   "dependencies": {
-    "purescript-argonaut-core": "^0.2.0",
-    "purescript-generics": "^0.7.0",
-    "purescript-integers": "^0.2.1",
-    "purescript-partial": "^1.1.0"
+    "purescript-argonaut-core": "^1.0.0",
+    "purescript-arrays": "^1.0.0",
+    "purescript-generics": "^1.0.0",
+    "purescript-integers": "^1.0.0",
+    "purescript-partial": "^1.1.2"
   },
   "devDependencies": {
-    "purescript-strongcheck-generics": "^0.3.0",
-    "purescript-assert": "~0.1.1"
+    "purescript-strongcheck-generics": "^0.4.0",
+    "purescript-assert": "^1.0.0"
   }
 }
