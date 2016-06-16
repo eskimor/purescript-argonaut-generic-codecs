@@ -9,24 +9,24 @@ module Data.Argonaut.Generic.Encode
   ) where
 
 import Prelude
-
-import Data.Argonaut.Core (Json(), jsonNull, fromBoolean, fromNumber, fromString, fromArray, fromObject)
 import Data.Argonaut.Generic.Options
-import Data.Either (Either(), either)
+import Data.Argonaut.Generic.Util
+import Data.Array.Partial as Unsafe
+import Data.Map as M
+import Data.StrMap as SM
+import Data.Argonaut.Core (fromString, fromArray, Json, jsonNull, fromBoolean, fromNumber, fromObject)
+import Data.Array (length, concatMap, filter, zip, zipWith)
+import Data.Either (Either, either)
 import Data.Foldable (foldr)
-import Data.Generic (class Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
+import Data.Generic (class Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor, toSignature)
 import Data.Int (toNumber)
 import Data.List (List(..), fromFoldable)
-import Data.Map as M
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.String (singleton)
-import Data.StrMap as SM
 import Data.Tuple (Tuple(..))
-import Type.Proxy (Proxy(..))
 import Data.Tuple (uncurry)
-import Data.Array (length, concatMap, filter, zip, zipWith)
-import Data.Array.Partial as Unsafe
 import Partial.Unsafe (unsafeCrashWith)
+import Type.Proxy (Proxy(..))
 
 
 genericEncodeJson :: forall a. (Generic a) => Options -> a -> Json
@@ -79,7 +79,7 @@ genericEncodeProdJson' opts'@(Options opts) constrSigns constr args =
     if opts.allNullaryToStringTag && allConstructorsNullary constrSigns
     then fromString fixedConstr
     else fromObject
-        $ SM.insert sumConf.tagFieldName (encodeJson fixedConstr)
+        $ SM.insert sumConf.tagFieldName (fromString fixedConstr)
         $ SM.singleton sumConf.contentsFieldName contents
   where
     sumConf            = case opts.sumEncoding of
@@ -88,11 +88,11 @@ genericEncodeProdJson' opts'@(Options opts) constrSigns constr args =
     encodedArgs        = genericEncodeProdArgs opts' constrSigns constr args
     contents           = if opts.flattenContentsArray && length encodedArgs == 1
                          then Unsafe.head encodedArgs
-                         else encodeJson encodedArgs
+                         else fromArray encodedArgs
 
 
 
-genericEncodeProdArgs :: Options -> Array DataConstructor -> String -> Array (Unit -> GenericSpine) -> Array (Json)
+genericEncodeProdArgs :: Options -> Array DataConstructor -> String -> Array (Unit -> GenericSpine) -> Array Json
 genericEncodeProdArgs opts constrSigns constr args = zipWith (genericUserEncodeJson' opts) sigValues values
   where
    lSigValues = concatMap (\c -> c.sigValues)

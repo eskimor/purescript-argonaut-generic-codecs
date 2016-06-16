@@ -6,7 +6,7 @@ import Data.Foldable (all)
 import Data.String (lastIndexOf, drop)
 import Data.Generic (DataConstructor())
 import Data.Array (null, length)
-import Data.Generic (Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
+import Data.Generic (class Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
 import Data.Either (Either(..))
 import Data.Maybe (Maybe(..))
 

@@ -1,14 +1,12 @@
 -- | Flexible generic decoding. Use this for defining your own custom encodings
 -- | or use "Data.Argonaut.Generic.Aeson" and "Data.Argonaut.Generic.Argonaut" for concrete codecs.
 module Data.Argonaut.Generic.Decode
-  ( DecodeJson
-  , decodeJson
-  , gDecodeJson
-  , genericDecodeJson
+  (
+    genericDecodeJson
   , genericDecodeJson'
   , genericUserDecodeJson'
   , decodeMaybe
-  , module Data.Argonaut.Options
+  , module Data.Argonaut.Generic.Options
   , mFail
   ) where
 
@@ -21,9 +19,9 @@ import Data.Argonaut.Generic.Options
 import Data.Array (zipWithA, length)
 import Data.Either (either, Either(..))
 import Data.Foldable (find)
-import Data.Generic (Generic, GenericSpine(..), GenericSignature(..), DataConstructor(), fromSpine, toSignature)
+import Data.Generic (class Generic, GenericSpine(..), GenericSignature(..), DataConstructor(), fromSpine, toSignature)
 import Data.Int (fromNumber)
-import Data.List (List(..), toList)
+import Data.List (List(..), fromFoldable)
 import Data.Map as Map
 import Data.Maybe (maybe, Maybe(..), fromMaybe)
 import Data.String (charAt, toChar)
@@ -32,7 +30,7 @@ import Data.Traversable (traverse, for)
 import Data.Tuple (Tuple(..))
 import Partial.Unsafe (unsafeCrashWith)
 import Type.Proxy (Proxy(..))
-import Data.Array.Unsafe as Unsafe
+import Data.Array.Partial as Unsafe
 
 
 -- | Decode `Json` representation of a value which has a `Generic` type.
@@ -86,17 +84,17 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json =
       pure (SProd foundConstr.sigConstructor [])
     decodeTagged = do
       jObj <- mFail (decodingErr "expected an object") (toObject json)
-      tagJson  <- mFail (decodingErr "'" ++ tagL ++ "' property is missing") (M.lookup tagL jObj)
-      tag <- mFail (decodingErr "'" ++ tagL ++ "' property is not a string") (toString tagJson)
+      tagJson  <- mFail (decodingErr "'" <> tagL <> "' property is missing") (M.lookup tagL jObj)
+      tag <- mFail (decodingErr "'" <> tagL <> "' property is not a string") (toString tagJson)
       foundConstr <-  findConstrFail tag
-      jVals <- mFail (decodingErr "'" ++ contL ++ "' property is missing") (M.lookup contL jObj)
+      jVals <- mFail (decodingErr "'" <> contL <> "' property is missing") (M.lookup contL jObj)
       vals <- if opts.flattenContentsArray && (length foundConstr.sigValues == 1)
               then pure [jVals]
               else mFail (decodingErr "Expected array") (toArray jVals)
       sps  <- zipWithA (\k -> genericUserDecodeJson' opts' (k unit)) foundConstr.sigValues vals
       pure (SProd foundConstr.sigConstructor (const <$> sps))
 
-    decodingErr msg = "When decoding a " ++ tname ++ ": " ++ msg
+    decodingErr msg = "When decoding a " <> tname <> ": " <> msg
     fixConstr      = opts.constructorTagModifier
     sumConf = case opts.sumEncoding of
       TaggedObject conf -> conf

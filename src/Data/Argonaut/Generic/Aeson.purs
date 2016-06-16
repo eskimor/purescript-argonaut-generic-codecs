@@ -14,7 +14,7 @@ import Control.Alt ((<|>))
 import Data.Argonaut.Core (Json(), jsonNull, fromBoolean, fromNumber, fromString, fromArray, fromObject, JArray, jsonNull, isNull, toObject, toArray)
 import Data.Argonaut.Options
 import Data.Argonaut.Encode
-import Data.Argonaut.Decode hiding (decodeMaybe)
+import Data.Argonaut.Generic.Decode hiding (decodeMaybe)
 import Data.Either (Either(), either)
 import Data.Foldable (foldr)
 import Data.Generic (Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
