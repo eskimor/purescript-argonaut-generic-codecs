@@ -9,23 +9,19 @@ module Data.Argonaut.Generic.Encode
   ) where
 
 import Prelude
-import Data.Argonaut.Generic.Options
-import Data.Argonaut.Generic.Util
+import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
+import Data.Argonaut.Generic.Util (allConstructorsNullary, isUnaryRecord)
 import Data.Array.Partial as Unsafe
-import Data.Map as M
 import Data.StrMap as SM
 import Data.Argonaut.Core (fromString, fromArray, Json, jsonNull, fromBoolean, fromNumber, fromObject)
 import Data.Array (length, concatMap, filter, zip, zipWith)
-import Data.Either (Either, either)
 import Data.Foldable (foldr)
 import Data.Generic (class Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor, toSignature)
 import Data.Int (toNumber)
-import Data.List (List(..), fromFoldable)
-import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Maybe (fromMaybe)
 import Data.String (singleton)
-import Data.Tuple (Tuple(..))
 import Data.Tuple (uncurry)
-import Partial.Unsafe (unsafeCrashWith)
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import Type.Proxy (Proxy(..))
 
 
@@ -73,8 +69,8 @@ genericEncodeProdJson' opts'@(Options opts) constrSigns constr args =
   if opts.unwrapUnaryRecords && isUnaryRecord constrSigns
   then
     genericUserEncodeJson' opts'
-      (Unsafe.head (Unsafe.head constrSigns).sigValues unit)
-      (Unsafe.head args unit)
+      (unsafeHead (unsafeHead constrSigns).sigValues unit)
+      (unsafeHead args unit)
   else
     if opts.allNullaryToStringTag && allConstructorsNullary constrSigns
     then fromString fixedConstr
@@ -87,7 +83,7 @@ genericEncodeProdJson' opts'@(Options opts) constrSigns constr args =
     fixedConstr        = opts.constructorTagModifier constr
     encodedArgs        = genericEncodeProdArgs opts' constrSigns constr args
     contents           = if opts.flattenContentsArray && length encodedArgs == 1
-                         then Unsafe.head encodedArgs
+                         then unsafeHead encodedArgs
                          else fromArray encodedArgs
 
 
@@ -99,3 +95,6 @@ genericEncodeProdArgs opts constrSigns constr args = zipWith (genericUserEncodeJ
                    <<< filter (\c -> c.sigConstructor == constr) $ constrSigns
    sigValues = (unit # _) <$> lSigValues
    values = (unit # _) <$> args
+
+unsafeHead :: forall a. Array a -> a
+unsafeHead = unsafePartial Unsafe.head

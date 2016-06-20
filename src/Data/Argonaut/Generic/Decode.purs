@@ -5,30 +5,26 @@ module Data.Argonaut.Generic.Decode
     genericDecodeJson
   , genericDecodeJson'
   , genericUserDecodeJson'
-  , decodeMaybe
   , module Data.Argonaut.Generic.Options
   , mFail
   ) where
 
-import Prelude
-
+import Prelude (const, pure, bind, unit, map, (&&), ($), (<<<), (==), (<>), (<$>), (=<<))
 import Control.Alt ((<|>))
 import Control.Bind ((=<<))
-import Data.Argonaut.Core (Json(), isNull, foldJsonNull, foldJsonBoolean, foldJsonNumber, foldJsonString, toArray, toNumber, toObject, toString, toBoolean)
-import Data.Argonaut.Generic.Options
+import Data.Argonaut.Core (Json, toArray, toString, toObject, toBoolean, toNumber)
+import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
+import Data.Argonaut.Generic.Util
 import Data.Array (zipWithA, length)
-import Data.Either (either, Either(..))
+import Data.Either (Either(Right, Left))
 import Data.Foldable (find)
 import Data.Generic (class Generic, GenericSpine(..), GenericSignature(..), DataConstructor(), fromSpine, toSignature)
 import Data.Int (fromNumber)
-import Data.List (List(..), fromFoldable)
-import Data.Map as Map
-import Data.Maybe (maybe, Maybe(..), fromMaybe)
-import Data.String (charAt, toChar)
+import Data.Maybe (maybe, Maybe, fromMaybe)
+import Data.String (toChar)
 import Data.StrMap as M
 import Data.Traversable (traverse, for)
-import Data.Tuple (Tuple(..))
-import Partial.Unsafe (unsafeCrashWith)
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 import Type.Proxy (Proxy(..))
 import Data.Array.Partial as Unsafe
 
@@ -66,7 +62,7 @@ genericDecodeJson' opts signature json = case signature of
  SigProd typeConstr constrSigns -> genericDecodeProdJson' opts typeConstr constrSigns json
 
 genericDecodeProdJson' :: Options ->  String -> Array DataConstructor -> Json -> Either String GenericSpine
-genericDecodeProdJson' opts'@(Options opts) tname constrSigns json =
+genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafePartial $
   if opts.unwrapUnaryRecords && isUnaryRecord constrSigns
   then do
     let constr = Unsafe.head constrSigns
@@ -105,8 +101,6 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json =
     findConstr tag = find ((tag == _) <<< fixConstr <<< _.sigConstructor) constrSigns
 
 
-decodeMaybe :: forall a. (DecodeJson a) => Json -> Maybe a
-decodeMaybe json = either (const Nothing) pure $ decodeJson json
 
 mFail :: forall a. String -> Maybe a -> Either String a
 mFail msg = maybe (Left msg) Right

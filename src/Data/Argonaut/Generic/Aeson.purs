@@ -9,30 +9,24 @@ module Data.Argonaut.Generic.Aeson
   ) where
 
 import Prelude
-
-import Control.Alt ((<|>))
-import Data.Argonaut.Core (Json(), jsonNull, fromBoolean, fromNumber, fromString, fromArray, fromObject, JArray, jsonNull, isNull, toObject, toArray)
-import Data.Argonaut.Options
-import Data.Argonaut.Encode
-import Data.Argonaut.Generic.Decode hiding (decodeMaybe)
-import Data.Either (Either(), either)
-import Data.Foldable (foldr)
-import Data.Generic (Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor(), toSignature)
-import Data.Int (toNumber)
-import Data.List (List(..), fromList, fromFoldable)
+import Data.Array.Partial as Unsafe
 import Data.List as L
-import Data.Map as M
-import Data.Either (Either(..))
-import Data.Maybe (Maybe(..), fromMaybe)
-import Data.String (fromChar)
 import Data.StrMap as SM
+import Control.Alt ((<|>))
+import Data.Argonaut.Core (JArray, Json, toArray, toObject, fromObject, isNull, jsonNull, fromArray)
+import Data.Argonaut.Generic.Decode (genericUserDecodeJson', mFail, genericDecodeJson)
+import Data.Argonaut.Generic.Encode (genericUserEncodeJson', genericEncodeJson)
+import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..))
+import Data.Argonaut.Generic.Util (stripModulePath)
+import Data.Array (filter, zipWith)
+import Data.Either (Either(..))
+import Data.Generic (class Generic, DataConstructor, GenericSignature(SigProd), GenericSpine(SProd))
+import Data.List (List(..), fromFoldable)
+import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Traversable (sequence)
-import Data.Tuple (Tuple(..))
-import Type.Proxy (Proxy(..))
-import Data.Tuple (uncurry)
-import Data.Array (length, concatMap, filter, zip, zipWith)
-import Data.Array.Unsafe as Unsafe
-import Partial.Unsafe (unsafeCrashWith)
+import Data.Tuple (Tuple(Tuple))
+import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+
 
 
 -- | Options for aeson compatible encoding/decoding.
@@ -79,28 +73,28 @@ userDecoding opts sig json = decodeMaybe opts sig json
 
 encodeMaybe :: Options -> GenericSignature -> GenericSpine -> Maybe Json
 encodeMaybe opts (SigProd "Data.Maybe.Maybe" sigArr) (SProd "Data.Maybe.Just" [elem]) =
-    return $ genericUserEncodeJson' opts valSig val
+    pure $ genericUserEncodeJson' opts valSig val
   where
     valSig = getSigFromUnaryConstructor sigArr "Data.Maybe.Just"
     val = elem unit
 
 encodeMaybe opts (SigProd "Data.Maybe.Maybe" _) (SProd "Data.Maybe.Nothing" _) =
-    return jsonNull
+    pure jsonNull
 encodeMaybe _ _ _ = Nothing
 
 decodeMaybe :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
 decodeMaybe opts (SigProd "Data.Maybe.Maybe" sigArr) json =
   if isNull json
-    then return $ Right $ SProd "Data.Maybe.Nothing" []
-    else return $ do
+    then pure $ Right $ SProd "Data.Maybe.Nothing" []
+    else pure $ do
       let valSig = getSigFromUnaryConstructor sigArr "Data.Maybe.Just"
       decoded <- genericUserDecodeJson' opts valSig json
-      return $ SProd "Data.Maybe.Just" [\u -> decoded ]
+      pure $ SProd "Data.Maybe.Just" [\u -> decoded ]
 decodeMaybe _ _ _ = Nothing
 
 encodeEither :: Options -> GenericSignature -> GenericSpine -> Maybe Json
 encodeEither opts (SigProd "Data.Either.Either" sigArr) (SProd eitherConstr [elem]) =
-    return
+    pure
       $ fromObject $ SM.fromList
       $ Tuple strippedConstr (genericUserEncodeJson' opts valSig val) `Cons` Nil
   where
@@ -110,7 +104,7 @@ encodeEither opts (SigProd "Data.Either.Either" sigArr) (SProd eitherConstr [ele
 encodeEither _ _ _ = Nothing
 
 decodeEither :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
-decodeEither opts (SigProd "Data.Either.Either" sigArr) json = return $ do
+decodeEither opts (SigProd "Data.Either.Either" sigArr) json = pure $ do
     obj <- mFail "Expeced an object when decoding Either" $ toObject json
     fromMaybe (Left "Expected Left or Right record label when decoding Either")
       $ decodeArg "Right" obj <|> decodeArg "Left" obj
@@ -118,16 +112,16 @@ decodeEither opts (SigProd "Data.Either.Either" sigArr) json = return $ do
     decodeArg name obj = do
       argJson <- SM.lookup name obj
       let valSig = getSigFromUnaryConstructor sigArr $ "Data.Either." <> name
-      return $ do
+      pure $ do
         decoded <- genericUserDecodeJson' opts valSig argJson
-        return $ SProd ("Data.Either." <> name) [\u -> decoded]
+        pure $ SProd ("Data.Either." <> name) [\u -> decoded]
 decodeEither _ _ _ = Nothing
 
 encodeTuple :: Options -> GenericSignature ->  GenericSpine -> Maybe JArray
 encodeTuple opts (SigProd "Data.Tuple.Tuple" sigArr) (SProd "Data.Tuple.Tuple" arr) =
     append
-      <$> encodeTuple opts (Unsafe.head signatures) (Unsafe.head spines)
-      <*> encodeTupleArgs opts (Unsafe.tail signatures) (Unsafe.tail spines)
+      <$> encodeTuple opts (unsafeHead signatures) (unsafeHead spines)
+      <*> encodeTupleArgs opts (unsafeTail signatures) (unsafeTail spines)
   <|>
     encodeTupleArgs opts signatures spines -- Or just encode arguments
   where
@@ -136,7 +130,7 @@ encodeTuple opts (SigProd "Data.Tuple.Tuple" sigArr) (SProd "Data.Tuple.Tuple" a
 encodeTuple _ _ _ = Nothing
 
 decodeTuple :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
-decodeTuple opts (SigProd "Data.Tuple.Tuple" sigArr) json = return $ do
+decodeTuple opts (SigProd "Data.Tuple.Tuple" sigArr) json = pure $ do
     jsonVals <- mFail "Expected an array of values when decoding Tuple" $ toArray json
     let sigs = getNestedTupleSigs $ getSigsFromConstructor sigArr "Data.Tuple.Tuple"
     decoded <- sequence $ L.zipWith (genericUserDecodeJson' opts) sigs (arrToList jsonVals)
@@ -144,7 +138,7 @@ decodeTuple opts (SigProd "Data.Tuple.Tuple" sigArr) json = return $ do
   where
     makeTuple x1 x2 = SProd "Data.Tuple.Tuple" [\_ -> x1, \_ -> x2]
 
-    makeTuples (Cons x1 (Cons x2 xs)) = return $ makeTuples' (makeTuple x1 x2) xs
+    makeTuples (Cons x1 (Cons x2 xs)) = pure $ makeTuples' (makeTuple x1 x2) xs
     makeTuples _ = Left "A tuple needs to have at least two elements"
 
     makeTuples' inner Nil = inner
@@ -154,16 +148,16 @@ decodeTuple opts (SigProd "Data.Tuple.Tuple" sigArr) json = return $ do
 decodeTuple _ _ _ = Nothing
 
 encodeTupleArgs :: Options -> Array GenericSignature -> Array GenericSpine -> Maybe JArray
-encodeTupleArgs opts sigs arr = return $ zipWith (genericUserEncodeJson' opts) sigs arr
+encodeTupleArgs opts sigs arr = pure $ zipWith (genericUserEncodeJson' opts) sigs arr
 
 
 getSigFromUnaryConstructor :: Array DataConstructor -> String -> GenericSignature
-getSigFromUnaryConstructor arr name = Unsafe.head $ getSigsFromConstructor arr name
+getSigFromUnaryConstructor arr name = unsafeHead $ getSigsFromConstructor arr name
 
 getSigsFromConstructor :: Array DataConstructor -> String -> Array GenericSignature
 getSigsFromConstructor arr name =
   let
-    constr = Unsafe.head <<< filter ((_ == name) <<< _.sigConstructor) $ arr
+    constr = unsafeHead <<< filter ((_ == name) <<< _.sigConstructor) $ arr
   in
     map (_ $ unit) constr.sigValues
 
@@ -175,6 +169,13 @@ getNestedTupleSigs' :: Array GenericSignature -> List GenericSignature
 getNestedTupleSigs' [val1, val2] = case val1 of
   SigProd "Data.Tuple.Tuple" cVals -> val2 `Cons` getNestedTupleSigs' (getSigsFromConstructor cVals "Data.Tuple.Tuple")
   _                                -> Cons val2 (Cons val1 Nil)
+getNestedTupleSigs' _ = unsafeCrashWith "Shouldn't a PS tuple always exactly two values?! I seem to be mistaken with this."
 
 arrToList :: forall a. Array a -> List a
 arrToList = fromFoldable
+
+unsafeHead :: forall a. Array a -> a
+unsafeHead = unsafePartial Unsafe.head
+
+unsafeTail :: forall a. Array a -> Array a
+unsafeTail = unsafePartial Unsafe.tail
