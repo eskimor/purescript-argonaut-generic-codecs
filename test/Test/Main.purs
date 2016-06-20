@@ -3,9 +3,11 @@ module Test.Main where
 import Prelude
 
 import Data.Argonaut.Core hiding (toNumber)
-import Data.Argonaut.Options
-import Data.Argonaut.Aeson as Aeson
-import Data.Argonaut.Argonaut as Argonaut
+import Data.Argonaut.Generic.Options
+import Data.Argonaut.Generic.Encode
+import Data.Argonaut.Generic.Decode
+import Data.Argonaut.Generic.Aeson as Aeson
+import Data.Argonaut.Generic.Argonaut as Argonaut
 import Data.Either
 import Data.Int (toNumber)
 import Data.Tuple
@@ -13,14 +15,14 @@ import Data.Maybe
 import Data.Array
 import Data.Generic
 import Data.Foldable (foldl)
-import Data.List (toList, List(..))
+import Data.List (fromFoldable, List(..))
 import Data.StrMap as SM
 
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (EXCEPTION())
 import Control.Monad.Eff.Random (RANDOM())
 import Control.Monad.Eff.Console
-import qualified Data.StrMap as M
+import Data.StrMap as M
 
 import Test.Assert (assert', ASSERT)
 import Test.StrongCheck
@@ -146,7 +148,7 @@ genericsCheck opts = do
 
   where
     valEncodeDecode :: forall a. (Eq a, Generic a) => Options ->  a -> Boolean
-    valEncodeDecode opts val = ((Right val) ==) <<< genericDecodeJson opts <<< genericEncodeJson opts $ val
+    valEncodeDecode opts val = ((Right val) == _) <<< genericDecodeJson opts <<< genericEncodeJson opts $ val
 
 
 main:: forall e. Eff ( err :: EXCEPTION, random :: RANDOM, console :: CONSOLE, assert :: ASSERT | e ) Unit
@@ -160,3 +162,6 @@ main = do
   let unwrapOpts = case Aeson.options of Options a -> a
   let unwrapUnaryOptions = Options $ unwrapOpts { unwrapUnaryRecords = true }
   genericsCheck unwrapUnaryOptions
+
+print :: forall a eff. Show a => a -> Eff (console :: CONSOLE | eff) Unit
+print = log <<< show
