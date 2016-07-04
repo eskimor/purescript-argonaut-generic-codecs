@@ -65,6 +65,16 @@ derive instance genericNewTypeWrapper2 :: Generic NewTypeWrapper2
 instance eqNewTypeWrapper2 :: Eq NewTypeWrapper2 where
   eq = gEq
 
+data UnwrapTestMult = UnwrapTestMult Int String
+derive instance genericUnwrapTestMult :: Generic UnwrapTestMult
+instance eqUnwrapTestMult :: Eq UnwrapTestMult where
+  eq = gEq
+
+data UnwrapTestSingle = UnwrapTestSingle Int
+derive instance genericUnwrapTestSingle :: Generic UnwrapTestSingle
+instance eqUnwrapTestSingle :: Eq UnwrapTestSingle where
+  eq = gEq
+
 prop_iso_generic :: Options -> GenericValue -> Boolean
 prop_iso_generic opts genericValue =
   Right val.spine == genericDecodeJson' opts val.signature (genericEncodeJson' opts val.signature val.spine)
@@ -83,12 +93,16 @@ checkAesonCompat =
     myNothing = Nothing :: Maybe Int
     myLeft = Left "Foo" :: Either String String
     myRight = Right "Bar" :: Either Int String
+    unwrapMult = UnwrapTestMult 8 "haha"
+    unwrapSingle = UnwrapTestSingle 8 
   in
-        Aeson.encodeJson myTuple   == fromArray [fromNumber $ toNumber 1, fromNumber $ toNumber 2, fromString "Hello"]
-    &&  Aeson.encodeJson myJust    == fromString "Test"
-    &&  Aeson.encodeJson myNothing == jsonNull
-    &&  Aeson.encodeJson myLeft    == fromObject (SM.fromList (Tuple "Left" (fromString "Foo") `Cons` Nil))
-    &&  Aeson.encodeJson myRight   == fromObject (SM.fromList (Tuple "Right" (fromString "Bar") `Cons` Nil))
+        Aeson.encodeJson myTuple      == fromArray [fromNumber $ toNumber 1, fromNumber $ toNumber 2, fromString "Hello"]
+    &&  Aeson.encodeJson myJust       == fromString "Test"
+    &&  Aeson.encodeJson myNothing    == jsonNull
+    &&  Aeson.encodeJson myLeft       == fromObject (SM.fromList (Tuple "Left" (fromString "Foo") `Cons` Nil))
+    &&  Aeson.encodeJson myRight      == fromObject (SM.fromList (Tuple "Right" (fromString "Bar") `Cons` Nil))
+    &&  Aeson.encodeJson unwrapMult   == fromArray [fromNumber $ toNumber 8, fromString "haha"]
+    &&  Aeson.encodeJson unwrapSingle == (fromNumber $ toNumber 8)
 
 
 genericsCheck :: forall e. Options -> Eff ( err :: EXCEPTION , random :: RANDOM , console :: CONSOLE, assert :: ASSERT | e) Unit
@@ -102,6 +116,8 @@ genericsCheck opts = do
   let mRight = Right 9 :: Either String Int
   let mLeft = Right (Left 2) :: Either String (Either Int Int)
   let mTuple = Tuple (Tuple (Tuple 2 3) "haha") "test"
+  let unwrapMult = UnwrapTestMult 8 "haha"
+  let unwrapSingle = UnwrapTestSingle 8 
   log "Check that decodeJson' and encodeJson' form an isomorphism .."
   assert' " Check all nullary:" (valEncodeDecode opts vNullary)
   assert' " Check multiple args:" (valEncodeDecode opts mArgs)
@@ -112,6 +128,8 @@ genericsCheck opts = do
   assert' " Check Right" (valEncodeDecode opts mRight)
   assert' " Check Left" (valEncodeDecode opts mLeft)
   assert' " Check tuple" (valEncodeDecode opts mTuple)
+  assert' " Check unwrapMult" (valEncodeDecode opts unwrapMult)
+  assert' " Check unwrapSingle" (valEncodeDecode opts unwrapSingle)
 
   quickCheck (prop_iso_generic opts)
   log "Check that decodeJson' returns a valid spine"
@@ -147,7 +165,7 @@ genericsCheck opts = do
   print $ genericEncodeJson opts ntw2
 
   where
-    valEncodeDecode :: forall a. (Eq a, Generic a) => Options ->  a -> Boolean
+    valEncodeDecode :: forall a. (Eq a, Generic a) => Options -> a -> Boolean
     valEncodeDecode opts val = ((Right val) == _) <<< genericDecodeJson opts <<< genericEncodeJson opts $ val
 
 

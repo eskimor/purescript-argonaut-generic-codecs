@@ -67,10 +67,7 @@ genericEncodeRecordJson' opts sigs fields = fromObject <<< foldr (uncurry addFie
 genericEncodeProdJson' :: Options -> Array DataConstructor -> String -> Array (Unit -> GenericSpine) -> Json
 genericEncodeProdJson' opts'@(Options opts) constrSigns constr args =
   if opts.unwrapUnaryRecords && isUnaryRecord constrSigns
-  then
-    genericUserEncodeJson' opts'
-      (unsafeHead (unsafeHead constrSigns).sigValues unit)
-      (unsafeHead args unit)
+  then contents
   else
     if opts.allNullaryToStringTag && allConstructorsNullary constrSigns
     then fromString fixedConstr

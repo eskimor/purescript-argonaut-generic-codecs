@@ -66,9 +66,7 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafeParti
   if opts.unwrapUnaryRecords && isUnaryRecord constrSigns
   then do
     let constr = Unsafe.head constrSigns
-    let unwrapped = Unsafe.head constr.sigValues unit
-    r <- genericUserDecodeJson' opts' unwrapped json
-    pure (SProd constr.sigConstructor [const r])
+    decodeConstructor constr json
   else
     if opts.allNullaryToStringTag && allConstructorsNullary constrSigns
     then decodeFromString
@@ -84,11 +82,14 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafeParti
       tag <- mFail (decodingErr "'" <> tagL <> "' property is not a string") (toString tagJson)
       foundConstr <-  findConstrFail tag
       jVals <- mFail (decodingErr "'" <> contL <> "' property is missing") (M.lookup contL jObj)
-      vals <- if opts.flattenContentsArray && (length foundConstr.sigValues == 1)
+      decodeConstructor foundConstr jVals
+
+    decodeConstructor constr jVals = do
+      vals <- if opts.flattenContentsArray && (length constr.sigValues == 1)
               then pure [jVals]
               else mFail (decodingErr "Expected array") (toArray jVals)
-      sps  <- zipWithA (\k -> genericUserDecodeJson' opts' (k unit)) foundConstr.sigValues vals
-      pure (SProd foundConstr.sigConstructor (const <$> sps))
+      sps <- zipWithA (\k -> genericUserDecodeJson' opts' (k unit)) constr.sigValues vals
+      pure (SProd constr.sigConstructor (const <$> sps))
 
     decodingErr msg = "When decoding a " <> tname <> ": " <> msg
     fixConstr      = opts.constructorTagModifier

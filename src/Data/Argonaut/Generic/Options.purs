@@ -21,7 +21,8 @@ newtype Options = Options { -- newtype necessary to avoid: https://github.com/pu
   -- | If a constructor has exactly one field, do not serialize as array.
 , flattenContentsArray    :: Boolean -- Flatten array to simple value, if constructor only takes a single value
   -- | You need a newtype wrapper encoding/decoding of records, set this
-  -- | to true if you want the plain Javascript object without a wrapping tagged object.
+  --   to true if you want the plain Javascript object without a wrapping tagged object.
+  --   If an ADT only defines one data constructor, the data constructor will be omitted in the encoding. 
 , unwrapUnaryRecords :: Boolean
 -- | You can choose to encode some data types differently than the generic default.
 -- | Find a thorough example for doing this in "Data.Argonaut.Generic.Aeson"!

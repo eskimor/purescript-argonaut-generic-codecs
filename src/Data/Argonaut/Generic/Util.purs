@@ -11,9 +11,11 @@ import Data.Maybe (Maybe(..))
 allConstructorsNullary :: Array DataConstructor -> Boolean
 allConstructorsNullary = all (null <<< _.sigValues)
 
+
+-- | Needed for applying unwrapUnaryRecords.
 isUnaryRecord :: Array DataConstructor -> Boolean
 isUnaryRecord constrSigns = length constrSigns == 1 -- Only one constructor
-                            && all ((_ == 1) <<< length <<< _.sigValues)  constrSigns -- Only one parameter
+                            
 
 stripModulePath :: String -> String
 stripModulePath constr = case lastIndexOf "." constr of
