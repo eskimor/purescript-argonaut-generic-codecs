@@ -9,24 +9,24 @@ module Data.Argonaut.Generic.Decode
   , mFail
   ) where
 
-import Prelude (const, pure, bind, unit, map, (&&), ($), (<<<), (==), (<>), (<$>), (=<<))
+import Data.Argonaut.Generic.Util
+import Data.Array.Partial as Unsafe
+import Data.StrMap as M
 import Control.Alt ((<|>))
 import Control.Bind ((=<<))
 import Data.Argonaut.Core (Json, toArray, toString, toObject, toBoolean, toNumber)
 import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
-import Data.Argonaut.Generic.Util
 import Data.Array (zipWithA, length)
 import Data.Either (Either(Right, Left))
 import Data.Foldable (find)
-import Data.Generic (class Generic, GenericSpine(..), GenericSignature(..), DataConstructor(), fromSpine, toSignature)
+import Data.Generic (class Generic, GenericSpine(..), GenericSignature(..), DataConstructor, fromSpine, toSignature)
 import Data.Int (fromNumber)
 import Data.Maybe (maybe, Maybe, fromMaybe)
 import Data.String (toChar)
-import Data.StrMap as M
 import Data.Traversable (traverse, for)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+import Prelude (not, const, pure, bind, unit, map, (&&), ($), (<<<), (==), (<>), (<$>), (=<<))
 import Type.Proxy (Proxy(..))
-import Data.Array.Partial as Unsafe
 
 
 -- | Decode `Json` representation of a value which has a `Generic` type.
@@ -63,7 +63,7 @@ genericDecodeJson' opts signature json = case signature of
 
 genericDecodeProdJson' :: Options ->  String -> Array DataConstructor -> Json -> Either String GenericSpine
 genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafePartial $
-  if opts.unwrapUnaryRecords && isUnaryRecord constrSigns
+  if not opts.encodeSingleConstructors && isUnaryRecord constrSigns
   then do
     let constr = Unsafe.head constrSigns
     decodeConstructor constr json

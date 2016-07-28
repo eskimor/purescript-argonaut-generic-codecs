@@ -32,19 +32,19 @@ import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 -- | Options for aeson compatible encoding/decoding.
 options :: Options
 options = Options {
-  constructorTagModifier : stripModulePath
-, allNullaryToStringTag  : true
-, sumEncoding            : sumEncoding
-, flattenContentsArray   : true
-, unwrapUnaryRecords     : true
-, userEncoding           : userEncoding
-, userDecoding           : userDecoding
+  constructorTagModifier   : stripModulePath
+, allNullaryToStringTag    : true
+, sumEncoding              : sumEncoding
+, flattenContentsArray     : true
+, encodeSingleConstructors : false
+, userEncoding             : userEncoding
+, userDecoding             : userDecoding
 }
 
 sumEncoding :: SumEncoding
 sumEncoding = TaggedObject {
-  tagFieldName           : "tag"
-, contentsFieldName      : "contents"
+  tagFieldName             : "tag"
+, contentsFieldName        : "contents"
 }
 
 -- | Encode `Json` representation of a value which has a `Generic` type

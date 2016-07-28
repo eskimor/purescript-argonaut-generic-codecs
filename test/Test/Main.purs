@@ -176,10 +176,10 @@ main = do
   genericsCheck Argonaut.options
   log "genericsCheck check for aesonOptions"
   genericsCheck Aeson.options
-  log "genericsCheck check for unwrapUnaryOptions"
+  log "genericsCheck check for encodeSingleOptions"
   let unwrapOpts = case Aeson.options of Options a -> a
-  let unwrapUnaryOptions = Options $ unwrapOpts { unwrapUnaryRecords = true }
-  genericsCheck unwrapUnaryOptions
+  let encodeSingleOptions = Options $ unwrapOpts { encodeSingleConstructors = false }
+  genericsCheck encodeSingleOptions
 
 print :: forall a eff. Show a => a -> Eff (console :: CONSOLE | eff) Unit
 print = log <<< show

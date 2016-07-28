@@ -16,19 +16,19 @@ import Data.Either (Either)
 -- | Default for straight forward argonaut encoding.
 options :: Options
 options = Options {
-  constructorTagModifier : id
-, allNullaryToStringTag  : false
-, sumEncoding            : sumEncoding
-, flattenContentsArray   : false
-, unwrapUnaryRecords     : false
-, userEncoding           : dummyUserEncoding
-, userDecoding           : dummyUserDecoding
+  constructorTagModifier   : id
+, allNullaryToStringTag    : false
+, sumEncoding              : sumEncoding
+, flattenContentsArray     : false
+, encodeSingleConstructors : true
+, userEncoding             : dummyUserEncoding
+, userDecoding             : dummyUserDecoding
 }
 
 sumEncoding :: SumEncoding
 sumEncoding = TaggedObject {
-  tagFieldName           : "tag"
-, contentsFieldName      : "values"
+  tagFieldName             : "tag"
+, contentsFieldName        : "values"
 }
 
 -- | Encode any `Generic` data structure into `Json`,
