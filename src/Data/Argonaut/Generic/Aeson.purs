@@ -105,7 +105,7 @@ encodeEither _ _ _ = Nothing
 
 decodeEither :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
 decodeEither opts (SigProd "Data.Either.Either" sigArr) json = pure $ do
-    obj <- mFail "Expeced an object when decoding Either" $ toObject json
+    obj <- mFail "Expected an object when decoding Either" $ toObject json
     fromMaybe (Left "Expected Left or Right record label when decoding Either")
       $ decodeArg "Right" obj <|> decodeArg "Left" obj
   where
