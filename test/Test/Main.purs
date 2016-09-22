@@ -12,10 +12,10 @@ import Data.Either
 import Data.Int (toNumber)
 import Data.Tuple
 import Data.Maybe
-import Data.Array
+import Data.Array hiding ((:))
 import Data.Generic
 import Data.Foldable (foldl)
-import Data.List (fromFoldable, List(..))
+import Data.List (fromFoldable, List(..), (:))
 import Data.StrMap as SM
 
 import Control.Monad.Eff (Eff())
@@ -42,6 +42,9 @@ data User = Anonymous
                        , tweets :: Array String
                        , followers :: Array User
                        }
+          | SmallRecord { foo :: String
+                        , bar :: Int
+                        }
 derive instance genericUser :: Generic User
 
 
@@ -104,6 +107,22 @@ checkAesonCompat =
     &&  Aeson.encodeJson unwrapMult   == fromArray [fromNumber $ toNumber 8, fromString "haha"]
     &&  Aeson.encodeJson unwrapSingle == (fromNumber $ toNumber 8)
 
+checkRecordEncoding :: forall eff. Eff (assert :: ASSERT | eff) Unit
+checkRecordEncoding = do
+    let smallRecord = SmallRecord {foo: "foo", bar: 42}
+    let encoded = Aeson.encodeJson smallRecord
+    let expected = fromObject $ SM.fromList $
+          Tuple "tag" (fromString "SmallRecord") :
+          Tuple "foo" (fromString "foo") :
+          Tuple "bar" (fromNumber $ toNumber 42) :
+          Nil
+    assertEquals encoded expected
+
+assertEquals :: forall a eff. (Eq a, Show a) =>
+  a -> a -> Eff (assert :: ASSERT | eff) Unit
+assertEquals a b = do
+  let message = show a <> " /= " <> show b
+  assert' message (a == b)
 
 genericsCheck :: forall e. Options -> Eff ( err :: EXCEPTION , random :: RANDOM , console :: CONSOLE, assert :: ASSERT | e) Unit
 genericsCheck opts = do
@@ -172,6 +191,7 @@ genericsCheck opts = do
 main:: forall e. Eff ( err :: EXCEPTION, random :: RANDOM, console :: CONSOLE, assert :: ASSERT | e ) Unit
 main = do
   assert' "aesonCompatcheck: " checkAesonCompat
+  checkRecordEncoding
   log "genericsCheck check for argonautOptions"
   genericsCheck Argonaut.options
   log "genericsCheck check for aesonOptions"
