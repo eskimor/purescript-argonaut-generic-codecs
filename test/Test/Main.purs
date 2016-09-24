@@ -136,7 +136,7 @@ genericsCheck opts = do
   let mLeft = Right (Left 2) :: Either String (Either Int Int)
   let mTuple = Tuple (Tuple (Tuple 2 3) "haha") "test"
   let unwrapMult = UnwrapTestMult 8 "haha"
-  let unwrapSingle = UnwrapTestSingle 8 
+  let unwrapSingle = UnwrapTestSingle 8
   log "Check that decodeJson' and encodeJson' form an isomorphism .."
   assert' " Check all nullary:" (valEncodeDecode opts vNullary)
   assert' " Check multiple args:" (valEncodeDecode opts mArgs)

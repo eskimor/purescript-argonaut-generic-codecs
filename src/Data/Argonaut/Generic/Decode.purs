@@ -25,7 +25,7 @@ import Data.Maybe (maybe, Maybe, fromMaybe)
 import Data.String (toChar)
 import Data.Traversable (traverse, for)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
-import Prelude (not, const, pure, bind, unit, map, (&&), ($), (<<<), (==), (<>), (<$>), (=<<))
+import Prelude (not, const, pure, bind, unit, map, (&&), ($), (<<<), (==), (<>), (<$>), (=<<), (||))
 import Type.Proxy (Proxy(..))
 
 
@@ -82,12 +82,12 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafeParti
       tag <- mFail (decodingErr "'" <> tagL <> "' property is not a string") (toString tagJson)
       foundConstr <-  findConstrFail tag
       jVals <- if sumConf.unpackRecords && constructorIsRecord foundConstr
-               then pure $ fromArray [fromObject $ M.delete tagL jObj] -- Just use the object we already have
+               then pure $ fromObject $ M.delete tagL jObj -- Just use the object we already have
                else mFail (decodingErr "'" <> contL <> "' property is missing") (M.lookup contL jObj)
       decodeConstructor foundConstr jVals
 
     decodeConstructor constr jVals = do
-      vals <- if opts.flattenContentsArray && (length constr.sigValues == 1)
+      vals <- if (opts.flattenContentsArray || sumConf.unpackRecords) && (length constr.sigValues == 1)
               then pure [jVals]
               else mFail (decodingErr "Expected array") (toArray jVals)
       sps <- zipWithA (\k -> genericUserDecodeJson' opts' (k unit)) constr.sigValues vals
