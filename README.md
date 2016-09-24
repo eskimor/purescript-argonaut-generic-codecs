@@ -13,6 +13,14 @@ Flexible generic encoding for purescript-argonaut - including a codec for Aeson 
 bower install purescript-argonaut-generic-codecs
 ```
 
+
+## Hacking
+
+ * Clone this repository
+ * Install bower, pulp and purescript
+ * Run `bower install` in the project directory
+ * Run `pulp test` in the project directory
+
 ## Documentation
 
 Module documentation is [published on Pursuit](http://pursuit.purescript.org/packages/purescript-argonaut-generic-codecs).
