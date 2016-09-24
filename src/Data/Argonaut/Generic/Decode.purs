@@ -14,7 +14,7 @@ import Data.Array.Partial as Unsafe
 import Data.StrMap as M
 import Control.Alt ((<|>))
 import Control.Bind ((=<<))
-import Data.Argonaut.Core (Json, toArray, toString, toObject, toBoolean, toNumber)
+import Data.Argonaut.Core (fromObject, fromArray, Json, toArray, toString, toObject, toBoolean, toNumber)
 import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
 import Data.Array (zipWithA, length)
 import Data.Either (Either(Right, Left))
@@ -81,7 +81,9 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafeParti
       tagJson  <- mFail (decodingErr "'" <> tagL <> "' property is missing") (M.lookup tagL jObj)
       tag <- mFail (decodingErr "'" <> tagL <> "' property is not a string") (toString tagJson)
       foundConstr <-  findConstrFail tag
-      jVals <- mFail (decodingErr "'" <> contL <> "' property is missing") (M.lookup contL jObj)
+      jVals <- if sumConf.unpackRecords && constructorIsRecord foundConstr
+               then pure $ fromArray [fromObject $ M.delete tagL jObj] -- Just use the object we already have
+               else mFail (decodingErr "'" <> contL <> "' property is missing") (M.lookup contL jObj)
       decodeConstructor foundConstr jVals
 
     decodeConstructor constr jVals = do
