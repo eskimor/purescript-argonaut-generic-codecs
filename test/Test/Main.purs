@@ -78,15 +78,19 @@ derive instance genericUnwrapTestSingle :: Generic UnwrapTestSingle
 instance eqUnwrapTestSingle :: Eq UnwrapTestSingle where
   eq = gEq
 
-prop_iso_generic :: Options -> GenericValue -> Boolean
+prop_iso_generic :: Options -> GenericValue -> Result
 prop_iso_generic opts genericValue =
-  Right val.spine == genericDecodeJson' opts val.signature (genericEncodeJson' opts val.signature val.spine)
-  where val = runGenericValue genericValue
+    annotate check $ "prop_iso_generic did not hold for: " <> unsafeToString genericValue
+  where
+    check = Right val.spine == genericDecodeJson' opts val.signature (genericEncodeJson' opts val.signature val.spine)
+    val = runGenericValue genericValue
 
-prop_decoded_spine_valid :: Options -> GenericValue -> Boolean
+prop_decoded_spine_valid :: Options -> GenericValue -> Result
 prop_decoded_spine_valid opts genericValue =
-  Right true == (isValidSpine val.signature <$> genericDecodeJson' opts val.signature (genericEncodeJson' opts val.signature val.spine))
-  where val = runGenericValue genericValue
+    annotate check $ "prop_decoded_spin_valid did not hold for: " <> unsafeToString genericValue
+  where
+    check = Right true == (isValidSpine val.signature <$> genericDecodeJson' opts val.signature (genericEncodeJson' opts val.signature val.spine))
+    val = runGenericValue genericValue
 
 checkAesonCompat :: Boolean
 checkAesonCompat =
@@ -115,6 +119,21 @@ checkRecordEncoding = do
           Tuple "tag" (fromString "SmallRecord") :
           Tuple "foo" (fromString "foo") :
           Tuple "bar" (fromNumber $ toNumber 42) :
+          Nil
+    assertEquals encoded expected
+
+checkRecordEncodingArgonaut :: forall eff. Eff (assert :: ASSERT | eff) Unit
+checkRecordEncodingArgonaut = do
+    let smallRecord = SmallRecord {foo: "foo", bar: 42}
+    let encoded = Argonaut.encodeJson smallRecord
+    let expected = fromObject $ SM.fromList $
+          Tuple "tag" (fromString "Test.Main.SmallRecord") :
+          Tuple "values"
+            (fromArray [fromObject $ SM.fromList $
+              Tuple "foo" (fromString "foo") :
+              Tuple "bar" (fromNumber $ toNumber 42) :
+              Nil
+            ]):
           Nil
     assertEquals encoded expected
 
@@ -150,9 +169,9 @@ genericsCheck opts = do
   assert' " Check unwrapMult" (valEncodeDecode opts unwrapMult)
   assert' " Check unwrapSingle" (valEncodeDecode opts unwrapSingle)
 
-  quickCheck (prop_iso_generic opts)
+  quickCheck $ prop_iso_generic opts
   log "Check that decodeJson' returns a valid spine"
-  quickCheck (prop_decoded_spine_valid opts)
+  quickCheck $ prop_decoded_spine_valid opts
   log "Print samples of values encoded with genericEncodeJson"
   print $ genericEncodeJson opts 5
   print $ genericEncodeJson opts [1, 2, 3, 5]
@@ -190,6 +209,8 @@ genericsCheck opts = do
 
 main:: forall e. Eff ( err :: EXCEPTION, random :: RANDOM, console :: CONSOLE, assert :: ASSERT | e ) Unit
 main = do
+  log "Check Argonaut record encoding"
+  checkRecordEncodingArgonaut
   assert' "aesonCompatcheck: " checkAesonCompat
   checkRecordEncoding
   log "genericsCheck check for argonautOptions"
@@ -203,3 +224,5 @@ main = do
 
 print :: forall a eff. Show a => a -> Eff (console :: CONSOLE | eff) Unit
 print = log <<< show
+
+foreign import unsafeToString :: forall obj. obj -> String
