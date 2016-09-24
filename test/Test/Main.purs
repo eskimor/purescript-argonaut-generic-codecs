@@ -97,7 +97,7 @@ checkAesonCompat =
     myLeft = Left "Foo" :: Either String String
     myRight = Right "Bar" :: Either Int String
     unwrapMult = UnwrapTestMult 8 "haha"
-    unwrapSingle = UnwrapTestSingle 8 
+    unwrapSingle = UnwrapTestSingle 8
   in
         Aeson.encodeJson myTuple      == fromArray [fromNumber $ toNumber 1, fromNumber $ toNumber 2, fromString "Hello"]
     &&  Aeson.encodeJson myJust       == fromString "Test"

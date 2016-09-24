@@ -9,16 +9,17 @@ module Data.Argonaut.Generic.Encode
   ) where
 
 import Prelude
-import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
-import Data.Argonaut.Generic.Util (allConstructorsNullary, isUnaryRecord)
 import Data.Array.Partial as Unsafe
 import Data.StrMap as SM
-import Data.Argonaut.Core (fromString, fromArray, Json, jsonNull, fromBoolean, fromNumber, fromObject)
-import Data.Array (length, concatMap, filter, zip, zipWith)
+import Control.MonadPlus (guard)
+import Data.Argonaut.Core (toObject, JObject, fromString, fromArray, Json, jsonNull, fromBoolean, fromNumber, fromObject)
+import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
+import Data.Argonaut.Generic.Util (allConstructorsNullary, isUnaryRecord, spineIsRecord)
+import Data.Array (head, length, concatMap, filter, zip, zipWith)
 import Data.Foldable (foldr)
 import Data.Generic (class Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor, toSignature)
 import Data.Int (toNumber)
-import Data.Maybe (fromMaybe)
+import Data.Maybe (Maybe(Just, Nothing), fromMaybe)
 import Data.String (singleton)
 import Data.Tuple (uncurry)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
@@ -71,15 +72,25 @@ genericEncodeProdJson' opts'@(Options opts) constrSigns constr args =
   else
     if opts.allNullaryToStringTag && allConstructorsNullary constrSigns
     then fromString fixedConstr
-    else fromObject
-        $ SM.insert sumConf.tagFieldName (fromString fixedConstr)
-        $ SM.singleton sumConf.contentsFieldName contents
+    else case containedRecord of
+      Nothing  -> fromObject
+                  $ SM.insert sumConf.tagFieldName (fromString fixedConstr)
+                  $ SM.singleton sumConf.contentsFieldName contents
+      Just obj -> fromObject
+                  $ SM.insert sumConf.tagFieldName (fromString fixedConstr) obj
   where
     sumConf            = case opts.sumEncoding of
                           TaggedObject conf -> conf
     fixedConstr        = opts.constructorTagModifier constr
     encodedArgs        = genericEncodeProdArgs opts' constrSigns constr args
-    contents           = if opts.flattenContentsArray && length encodedArgs == 1
+    containedRecord :: Maybe JObject
+    containedRecord    = do -- handle unpackRecord
+                           guard sumConf.unpackRecords
+                           arg <- (_ $ unit ) <$> head args
+                           guard $ spineIsRecord arg
+                           toObject contents
+
+    contents           = if (opts.flattenContentsArray || sumConf.unpackRecords) && length encodedArgs == 1
                          then unsafeHead encodedArgs
                          else fromArray encodedArgs
 
