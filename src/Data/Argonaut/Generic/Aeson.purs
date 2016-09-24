@@ -45,6 +45,7 @@ sumEncoding :: SumEncoding
 sumEncoding = TaggedObject {
   tagFieldName             : "tag"
 , contentsFieldName        : "contents"
+, unpackRecords            : true
 }
 
 -- | Encode `Json` representation of a value which has a `Generic` type

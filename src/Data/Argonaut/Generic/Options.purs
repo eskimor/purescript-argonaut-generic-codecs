@@ -43,6 +43,9 @@ data SumEncoding =
   TaggedObject {
     tagFieldName :: String
   , contentsFieldName :: String
+    -- | Should a contained record's fields be put in the tagged object record directly, like in Aeson?
+    -- | http://hackage.haskell.org/package/aeson/docs/Data-Aeson-Types.html#v:SumEncoding
+  , unpackRecords :: Boolean
   }
 
 
