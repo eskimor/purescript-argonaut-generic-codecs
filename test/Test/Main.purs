@@ -106,8 +106,8 @@ checkAesonCompat =
         Aeson.encodeJson myTuple      == fromArray [fromNumber $ toNumber 1, fromNumber $ toNumber 2, fromString "Hello"]
     &&  Aeson.encodeJson myJust       == fromString "Test"
     &&  Aeson.encodeJson myNothing    == jsonNull
-    &&  Aeson.encodeJson myLeft       == fromObject (SM.fromList (Tuple "Left" (fromString "Foo") `Cons` Nil))
-    &&  Aeson.encodeJson myRight      == fromObject (SM.fromList (Tuple "Right" (fromString "Bar") `Cons` Nil))
+    &&  Aeson.encodeJson myLeft       == fromObject (SM.singleton "Left" (fromString "Foo"))
+    &&  Aeson.encodeJson myRight      == fromObject (SM.singleton "Right" (fromString "Bar"))
     &&  Aeson.encodeJson unwrapMult   == fromArray [fromNumber $ toNumber 8, fromString "haha"]
     &&  Aeson.encodeJson unwrapSingle == (fromNumber $ toNumber 8)
 
@@ -115,7 +115,7 @@ checkRecordEncoding :: forall eff. Eff (assert :: ASSERT | eff) Unit
 checkRecordEncoding = do
     let smallRecord = SmallRecord {foo: "foo", bar: 42}
     let encoded = Aeson.encodeJson smallRecord
-    let expected = fromObject $ SM.fromList $
+    let expected = fromObject $ SM.fromFoldable $
           Tuple "tag" (fromString "SmallRecord") :
           Tuple "foo" (fromString "foo") :
           Tuple "bar" (fromNumber $ toNumber 42) :
@@ -126,10 +126,10 @@ checkRecordEncodingArgonaut :: forall eff. Eff (assert :: ASSERT | eff) Unit
 checkRecordEncodingArgonaut = do
     let smallRecord = SmallRecord {foo: "foo", bar: 42}
     let encoded = Argonaut.encodeJson smallRecord
-    let expected = fromObject $ SM.fromList $
+    let expected = fromObject $ SM.fromFoldable $
           Tuple "tag" (fromString "Test.Main.SmallRecord") :
           Tuple "values"
-            (fromArray [fromObject $ SM.fromList $
+            (fromArray [fromObject $ SM.fromFoldable $
               Tuple "foo" (fromString "foo") :
               Tuple "bar" (fromNumber $ toNumber 42) :
               Nil
