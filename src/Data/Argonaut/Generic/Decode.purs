@@ -12,9 +12,7 @@ module Data.Argonaut.Generic.Decode
 import Data.Argonaut.Generic.Util
 import Data.Array.Partial as Unsafe
 import Data.StrMap as M
-import Control.Alt ((<|>))
-import Control.Bind ((=<<))
-import Data.Argonaut.Core (fromObject, fromArray, Json, toArray, toString, toObject, toBoolean, toNumber)
+import Data.Argonaut.Core (fromObject, Json, toArray, toString, toObject, toBoolean, toNumber)
 import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
 import Data.Array (zipWithA, length)
 import Data.Either (Either(Right, Left))
