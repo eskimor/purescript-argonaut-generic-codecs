@@ -5,7 +5,7 @@ import Data.Array (head, null, length)
 import Data.Foldable (all)
 import Data.Generic (GenericSignature(SigRecord), GenericSpine(SRecord), DataConstructor)
 import Data.Maybe (fromMaybe, Maybe(..))
-import Data.String (lastIndexOf, drop)
+import Data.String (lastIndexOf, drop, Pattern(..))
 
 allConstructorsNullary :: Array DataConstructor -> Boolean
 allConstructorsNullary = all (null <<< _.sigValues)
@@ -17,7 +17,7 @@ isUnaryRecord constrSigns = length constrSigns == 1 -- Only one constructor
 
 
 stripModulePath :: String -> String
-stripModulePath constr = case lastIndexOf "." constr of
+stripModulePath constr = case lastIndexOf (Pattern ".") constr of
                     Nothing -> constr
                     Just i -> drop (i+1) constr
 

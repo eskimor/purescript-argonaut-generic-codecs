@@ -23,14 +23,14 @@
   },
   "license": "MIT",
   "dependencies": {
-    "purescript-argonaut-core": "^1.0.0",
-    "purescript-arrays": "^1.0.0",
-    "purescript-generics": "^1.0.0",
-    "purescript-integers": "^1.0.0",
+    "purescript-argonaut-core": "^2.0.1",
+    "purescript-arrays": "^3.1.0",
+    "purescript-generics": "^3.1.0",
+    "purescript-integers": "^2.1.0",
     "purescript-partial": "^1.1.2"
   },
   "devDependencies": {
-    "purescript-strongcheck-generics": "^0.4.0",
-    "purescript-assert": "^1.0.0"
+    "purescript-strongcheck-generics": "parsonsmatt/purescript-strongcheck-generics#4abd959aca4c5ae9495b030d360e4e3fc1567861",
+    "purescript-assert": "^2.0.0"
   }
 }

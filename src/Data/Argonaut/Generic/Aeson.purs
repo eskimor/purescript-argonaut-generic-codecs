@@ -24,7 +24,6 @@ import Data.Generic (class Generic, DataConstructor, GenericSignature(SigProd), 
 import Data.List (List(..), fromFoldable)
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.Traversable (sequence)
-import Data.Tuple (Tuple(Tuple))
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
 
 
@@ -96,8 +95,9 @@ decodeMaybe _ _ _ = Nothing
 encodeEither :: Options -> GenericSignature -> GenericSpine -> Maybe Json
 encodeEither opts (SigProd "Data.Either.Either" sigArr) (SProd eitherConstr [elem]) =
     pure
-      $ fromObject $ SM.fromList
-      $ Tuple strippedConstr (genericUserEncodeJson' opts valSig val) `Cons` Nil
+      $ fromObject 
+      $ SM.singleton strippedConstr 
+      $ genericUserEncodeJson' opts valSig val
   where
     strippedConstr = stripModulePath eitherConstr
     valSig = getSigFromUnaryConstructor sigArr eitherConstr
