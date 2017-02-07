@@ -30,7 +30,7 @@
     "purescript-partial": "^1.1.2"
   },
   "devDependencies": {
-    "purescript-strongcheck-generics": "parsonsmatt/purescript-strongcheck-generics#4abd959aca4c5ae9495b030d360e4e3fc1567861",
+    "purescript-strongcheck-generics": "^0.5.0",
     "purescript-assert": "^2.0.0"
   }
 }
