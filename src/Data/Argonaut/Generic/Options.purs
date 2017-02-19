@@ -19,6 +19,7 @@ newtype Options = Options { -- newtype necessary to avoid: https://github.com/pu
   -- | Options on how to do encoding of sum types.
 , sumEncoding             :: SumEncoding
   -- | If a constructor has exactly one field, do not serialize as array.
+  -- | Also, if the constructor has no fields, skip the contents field (aeson >= 1 behavior).
 , flattenContentsArray    :: Boolean -- Flatten array to simple value, if constructor only takes a single value
   -- | You need a newtype wrapper encoding/decoding of records, set this
   --   to false if you want the plain Javascript object without a wrapping tagged object.

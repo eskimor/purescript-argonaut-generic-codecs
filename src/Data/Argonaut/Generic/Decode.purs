@@ -21,7 +21,7 @@ import Data.Either (Either(Right, Left))
 import Data.Foldable (find)
 import Data.Generic (class Generic, GenericSpine(..), GenericSignature(..), DataConstructor, fromSpine, toSignature)
 import Data.Int (fromNumber)
-import Data.Maybe (maybe, Maybe, fromMaybe)
+import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (toChar)
 import Data.Traversable (traverse, for)
 import Partial.Unsafe (unsafeCrashWith, unsafePartial)
@@ -83,7 +83,11 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafeParti
       foundConstr <-  findConstrFail tag
       jVals <- if sumConf.unpackRecords && constructorIsRecord foundConstr
                then pure $ fromObject $ M.delete tagL jObj -- Just use the object we already have
-               else mFail (decodingErr "'" <> contL <> "' property is missing") (M.lookup contL jObj)
+               else case M.lookup contL jObj of
+                      Nothing -> if opts.flattenContentsArray
+                                 then Right $ fromArray []
+                                 else Left (decodingErr "'" <> contL <> "' property is missing")
+                      Just jVals -> Right jVals
       decodeConstructor foundConstr jVals
 
     decodeConstructor constr jVals = do
