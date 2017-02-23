@@ -75,7 +75,9 @@ genericEncodeProdJson' opts'@(Options opts) constrSigns constr args =
     else case containedRecord of
       Nothing  -> fromObject
                   $ SM.insert sumConf.tagFieldName (fromString fixedConstr)
-                  $ SM.singleton sumConf.contentsFieldName contents
+                  $ if opts.flattenContentsArray && length args == 0
+                    then SM.empty
+                    else SM.singleton sumConf.contentsFieldName contents
       Just obj -> fromObject
                   $ SM.insert sumConf.tagFieldName (fromString fixedConstr) obj
   where
