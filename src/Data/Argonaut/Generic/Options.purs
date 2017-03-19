@@ -33,6 +33,8 @@ newtype Options = Options { -- newtype necessary to avoid: https://github.com/pu
 -- | You can choose to decode some data types differently than the generic default.
 -- | Just return Nothing, to relay to generic decoding.
 , userDecoding :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
+  -- | Modify a fields label, e.g. convert the case from that used remotely.
+  , fieldLabelModifier :: String -> String
 }
 
 data SumEncoding =

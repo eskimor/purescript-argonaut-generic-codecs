@@ -17,6 +17,7 @@ import Data.Generic
 import Data.Foldable (foldl)
 import Data.List (fromFoldable, List(..), (:))
 import Data.StrMap as SM
+import Data.String (toUpper)
 
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (EXCEPTION())
@@ -221,6 +222,8 @@ main = do
   let unwrapOpts = case Aeson.options of Options a -> a
   let encodeSingleOptions = Options $ unwrapOpts { encodeSingleConstructors = false }
   genericsCheck encodeSingleOptions
+  log "genericsCheck check with fieldLabelModifier"
+  genericsCheck $ Options $ unwrapOpts { fieldLabelModifier = toUpper }
 
 print :: forall a eff. Show a => a -> Eff (console :: CONSOLE | eff) Unit
 print = log <<< show

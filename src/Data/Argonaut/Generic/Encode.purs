@@ -61,9 +61,10 @@ genericEncodeRecordJson' :: Options
                         -> Array { recLabel :: String, recValue :: Unit -> GenericSignature }
                         -> Array { recLabel :: String, recValue :: Unit -> GenericSpine }
                         -> Json
-genericEncodeRecordJson' opts sigs fields = fromObject <<< foldr (uncurry addField) SM.empty $ zip sigs fields
+genericEncodeRecordJson' opts'@(Options opts) sigs fields = fromObject <<< foldr (uncurry addField) SM.empty $ zip sigs fields
   where
-    addField sig field = SM.insert field.recLabel (genericUserEncodeJson' opts (sig.recValue unit) (field.recValue unit))
+    addField sig field = SM.insert (label field) (genericUserEncodeJson' opts' (sig.recValue unit) (field.recValue unit))
+    label field = opts.fieldLabelModifier field.recLabel
 
 genericEncodeProdJson' :: Options -> Array DataConstructor -> String -> Array (Unit -> GenericSpine) -> Json
 genericEncodeProdJson' opts'@(Options opts) constrSigns constr args =
