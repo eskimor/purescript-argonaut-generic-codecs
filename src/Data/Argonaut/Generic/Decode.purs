@@ -43,7 +43,7 @@ genericUserDecodeJson' opts'@(Options opts) sign json = fromMaybe (genericDecode
 
 -- | Decode `Json` representation of a `GenericSpine`.
 genericDecodeJson' :: Options -> GenericSignature -> Json -> Either String GenericSpine
-genericDecodeJson' opts signature json = case signature of
+genericDecodeJson' opts'@(Options opts) signature json = case signature of
  SigNumber -> SNumber <$> mFail "Expected a number" (toNumber json)
  SigInt -> SInt <$> mFail "Expected an integer number" (fromNumber =<< toNumber json)
  SigString -> SString <$> mFail "Expected a string" (toString json)
@@ -52,14 +52,15 @@ genericDecodeJson' opts signature json = case signature of
  SigUnit -> pure SUnit
  SigArray thunk -> do
    jArr <- mFail "Expected an array" $ toArray json
-   SArray <$> traverse (map const <<< genericUserDecodeJson' opts (thunk unit)) jArr
+   SArray <$> traverse (map const <<< genericUserDecodeJson' opts' (thunk unit)) jArr
  SigRecord props -> do
    jObj <- mFail "Expected an object" $ toObject json
    SRecord <$> for props \({recLabel: lbl, recValue: val}) -> do
-     pf <- mFail ("'" <> lbl <> "' property missing") (M.lookup lbl jObj)
-     sp <- genericUserDecodeJson' opts (val unit) pf
+     let jLabel = (opts.fieldLabelModifier lbl)
+     pf <- mFail ("'" <> jLabel <> "' property missing") (M.lookup jLabel jObj)
+     sp <- genericUserDecodeJson' opts' (val unit) pf
      pure { recLabel: lbl, recValue: const sp }
- SigProd typeConstr constrSigns -> genericDecodeProdJson' opts typeConstr constrSigns json
+ SigProd typeConstr constrSigns -> genericDecodeProdJson' opts' typeConstr constrSigns json
 
 genericDecodeProdJson' :: Options ->  String -> Array DataConstructor -> Json -> Either String GenericSpine
 genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafePartial $

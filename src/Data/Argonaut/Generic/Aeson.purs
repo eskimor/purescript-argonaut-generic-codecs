@@ -38,6 +38,7 @@ options = Options {
 , encodeSingleConstructors : false
 , userEncoding             : userEncoding
 , userDecoding             : userDecoding
+, fieldLabelModifier       : id
 }
 
 sumEncoding :: SumEncoding

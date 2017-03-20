@@ -17,6 +17,7 @@ import Data.Generic
 import Data.Foldable (foldl)
 import Data.List (fromFoldable, List(..), (:))
 import Data.StrMap as SM
+import Data.String (toUpper, singleton, uncons)
 
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Exception (EXCEPTION())
@@ -24,10 +25,13 @@ import Control.Monad.Eff.Random (RANDOM())
 import Control.Monad.Eff.Console
 import Data.StrMap as M
 
+import Partial.Unsafe (unsafePartial)
+
 import Test.Assert (assert', ASSERT)
 import Test.StrongCheck
 import Test.StrongCheck.Gen
 import Test.StrongCheck.Generic
+
 
 
 newtype MyRecord = MyRecord { foo :: String, bar :: Int}
@@ -137,6 +141,28 @@ checkRecordEncodingArgonaut = do
           Nil
     assertEquals encoded expected
 
+
+checkFieldLabelModifier :: forall eff. Eff (assert :: ASSERT | eff) Unit
+checkFieldLabelModifier = do
+  let smallRecord = SmallRecord {foo: "foo", bar: 42}
+  let titleCase :: String -> String
+      titleCase fieldLabel =
+        (toUpper $ singleton unconsed.head) <> (unconsed.tail)
+        where unconsed = unsafePartial $ fromJust $ uncons fieldLabel
+  let options = case Argonaut.options of Options options -> Options options { fieldLabelModifier = titleCase }
+  let encoded = genericEncodeJson options smallRecord
+  let expected = fromObject $ SM.fromFoldable $
+        Tuple "tag" (fromString "Test.Main.SmallRecord") :
+        Tuple "values"
+          (fromArray [fromObject $ SM.fromFoldable $
+            Tuple "Foo" (fromString "foo") :
+            Tuple "Bar" (fromNumber $ toNumber 42) :
+            Nil
+          ]):
+        Nil
+  assertEquals encoded expected
+
+
 assertEquals :: forall a eff. (Eq a, Show a) =>
   a -> a -> Eff (assert :: ASSERT | eff) Unit
 assertEquals a b = do
@@ -213,6 +239,8 @@ main = do
   checkRecordEncodingArgonaut
   assert' "aesonCompatcheck: " checkAesonCompat
   checkRecordEncoding
+  log "Check fieldLabelModifier"
+  checkFieldLabelModifier
   log "genericsCheck check for argonautOptions"
   genericsCheck Argonaut.options
   log "genericsCheck check for aesonOptions"
@@ -221,6 +249,8 @@ main = do
   let unwrapOpts = case Aeson.options of Options a -> a
   let encodeSingleOptions = Options $ unwrapOpts { encodeSingleConstructors = false }
   genericsCheck encodeSingleOptions
+  log "genericsCheck check with fieldLabelModifier"
+  genericsCheck $ Options $ unwrapOpts { fieldLabelModifier = toUpper }
 
 print :: forall a eff. Show a => a -> Eff (console :: CONSOLE | eff) Unit
 print = log <<< show
