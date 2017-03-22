@@ -24,6 +24,7 @@ options = Options {
 , userEncoding             : dummyUserEncoding
 , userDecoding             : dummyUserDecoding
 , fieldLabelModifier       : id
+, omitNothingFields        : false
 }
 
 sumEncoding :: SumEncoding
