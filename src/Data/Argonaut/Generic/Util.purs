@@ -3,9 +3,10 @@ module Data.Argonaut.Generic.Util where
 import Prelude
 import Data.Array (head, null, length)
 import Data.Foldable (all)
-import Data.Generic (GenericSignature(SigRecord), GenericSpine(SRecord), DataConstructor)
+import Data.Generic (DataConstructor, GenericSignature(..), GenericSpine(..), toSignature)
 import Data.Maybe (fromMaybe, Maybe(..))
 import Data.String (lastIndexOf, drop, Pattern(..))
+import Type.Proxy (Proxy(..))
 
 allConstructorsNullary :: Array DataConstructor -> Boolean
 allConstructorsNullary = all (null <<< _.sigValues)
@@ -34,3 +35,15 @@ constructorIsRecord constr = fromMaybe false $ do
   case record of
     SigRecord _ -> pure true
     _ -> pure false
+
+
+sigIsMaybe :: GenericSignature -> Boolean
+sigIsMaybe sig =
+  case sig of
+    SigProd constructor _ -> constructor == maybeConstructor
+    _ -> false
+  where
+    maybeConstructor =
+        case toSignature (Proxy :: Proxy (Maybe Int)) of
+          (SigProd constructor _) -> constructor
+          _ -> ""

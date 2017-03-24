@@ -51,6 +51,10 @@ data User = Anonymous
                         }
 derive instance genericUser :: Generic User
 
+newtype RecordWithMaybe = RecordWithMaybe { x :: Maybe Int, y :: Maybe Int }
+derive instance genericRecordWithMaybe :: Generic RecordWithMaybe
+derive instance eqRecordWithMaybe :: Eq RecordWithMaybe
+
 
 data AllNullary = Nullary1 | Nullary2 | Nullary3
 derive instance genericAllNullary :: Generic AllNullary
@@ -163,6 +167,32 @@ checkFieldLabelModifier = do
   assertEquals encoded expected
 
 
+checkOmitNothingFields :: forall eff. Eff (assert :: ASSERT | eff) Unit
+checkOmitNothingFields = do
+  let record = RecordWithMaybe { x: Just 1, y: Nothing}
+  let options = case Argonaut.options of Options options -> Options options { omitNothingFields = true }
+  let encoded = genericEncodeJson options record
+  let expected = fromObject $ SM.fromFoldable $
+        Tuple "tag" (fromString "Test.Main.RecordWithMaybe") :
+        Tuple "values"
+          (fromArray [fromObject $ SM.fromFoldable $
+            Tuple "x" (fromObject $ SM.fromFoldable $
+                Tuple "tag" (fromString "Data.Maybe.Just") :
+                Tuple "values" (fromArray [fromNumber $ toNumber 1])
+                : Nil)
+            :
+            Nil
+          ]):
+        Nil
+  assertEquals encoded expected
+  let options = case Aeson.options of Options options -> Options options { omitNothingFields = true }
+  let encoded = genericEncodeJson options record
+  let expected = fromObject $ SM.fromFoldable [
+        Tuple "x" (fromNumber $ toNumber 1)
+        ]
+  assertEquals encoded expected
+
+
 assertEquals :: forall a eff. (Eq a, Show a) =>
   a -> a -> Eff (assert :: ASSERT | eff) Unit
 assertEquals a b = do
@@ -182,6 +212,7 @@ genericsCheck opts = do
   let mTuple = Tuple (Tuple (Tuple 2 3) "haha") "test"
   let unwrapMult = UnwrapTestMult 8 "haha"
   let unwrapSingle = UnwrapTestSingle 8
+  let newTypeWithMaybe = RecordWithMaybe { x : Just 1, y: Nothing }
   log "Check that decodeJson' and encodeJson' form an isomorphism .."
   assert' " Check all nullary:" (valEncodeDecode opts vNullary)
   assert' " Check multiple args:" (valEncodeDecode opts mArgs)
@@ -194,6 +225,7 @@ genericsCheck opts = do
   assert' " Check tuple" (valEncodeDecode opts mTuple)
   assert' " Check unwrapMult" (valEncodeDecode opts unwrapMult)
   assert' " Check unwrapSingle" (valEncodeDecode opts unwrapSingle)
+  assert' " Check newTypeWithMaybe" (valEncodeDecode opts newTypeWithMaybe)
 
   quickCheck $ prop_iso_generic opts
   log "Check that decodeJson' returns a valid spine"
@@ -241,6 +273,8 @@ main = do
   checkRecordEncoding
   log "Check fieldLabelModifier"
   checkFieldLabelModifier
+  log "Check omitNothingFields"
+  checkOmitNothingFields
   log "genericsCheck check for argonautOptions"
   genericsCheck Argonaut.options
   log "genericsCheck check for aesonOptions"
@@ -251,6 +285,8 @@ main = do
   genericsCheck encodeSingleOptions
   log "genericsCheck check with fieldLabelModifier"
   genericsCheck $ Options $ unwrapOpts { fieldLabelModifier = toUpper }
+  log "genericsCheck check with omitNothingFields"
+  genericsCheck $ Options $ unwrapOpts { omitNothingFields = true }
 
 print :: forall a eff. Show a => a -> Eff (console :: CONSOLE | eff) Unit
 print = log <<< show

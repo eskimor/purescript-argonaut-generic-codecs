@@ -39,6 +39,7 @@ options = Options {
 , userEncoding             : userEncoding
 , userDecoding             : userDecoding
 , fieldLabelModifier       : id
+, omitNothingFields        : false
 }
 
 sumEncoding :: SumEncoding

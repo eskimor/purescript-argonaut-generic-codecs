@@ -14,7 +14,7 @@ import Data.StrMap as SM
 import Control.MonadPlus (guard)
 import Data.Argonaut.Core (toObject, JObject, fromString, fromArray, Json, jsonNull, fromBoolean, fromNumber, fromObject)
 import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
-import Data.Argonaut.Generic.Util (allConstructorsNullary, isUnaryRecord, spineIsRecord)
+import Data.Argonaut.Generic.Util (allConstructorsNullary, isUnaryRecord, sigIsMaybe, spineIsRecord)
 import Data.Array (head, length, concatMap, filter, zip, zipWith)
 import Data.Foldable (foldr)
 import Data.Generic (class Generic, GenericSpine(..), toSpine, GenericSignature(..), DataConstructor, toSignature)
@@ -63,7 +63,11 @@ genericEncodeRecordJson' :: Options
                         -> Json
 genericEncodeRecordJson' opts'@(Options opts) sigs fields = fromObject <<< foldr (uncurry addField) SM.empty $ zip sigs fields
   where
-    addField sig field = SM.insert (label field) (genericUserEncodeJson' opts' (sig.recValue unit) (field.recValue unit))
+    addField sig field sm =
+      if omitField then sm else SM.insert (label field) encodedField sm
+      where encodedField = (genericUserEncodeJson' opts' (sig.recValue unit) (field.recValue unit))
+            omitField = (sigIsMaybe (sig.recValue unit)) && spineIsNothing && opts.omitNothingFields
+            spineIsNothing = (field.recValue unit) == (toSpine (Nothing :: Maybe Int))
     label field = opts.fieldLabelModifier field.recLabel
 
 genericEncodeProdJson' :: Options -> Array DataConstructor -> String -> Array (Unit -> GenericSpine) -> Json

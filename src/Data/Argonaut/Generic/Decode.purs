@@ -14,12 +14,12 @@ import Data.Array.Partial as Unsafe
 import Data.StrMap as M
 import Control.Alt ((<|>))
 import Control.Bind ((=<<))
-import Data.Argonaut.Core (fromObject, fromArray, Json, toArray, toString, toObject, toBoolean, toNumber)
+import Data.Argonaut.Core (Json, fromArray, fromObject, jsonNull, toArray, toBoolean, toNumber, toObject, toString)
 import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
 import Data.Array (zipWithA, length)
 import Data.Either (Either(Right, Left))
 import Data.Foldable (find)
-import Data.Generic (class Generic, GenericSpine(..), GenericSignature(..), DataConstructor, fromSpine, toSignature)
+import Data.Generic (class Generic, DataConstructor, GenericSignature(..), GenericSpine(..), fromSpine, toSignature)
 import Data.Int (fromNumber)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (toChar)
@@ -40,7 +40,6 @@ genericUserDecodeJson' :: Options -> GenericSignature -> Json -> Either String G
 genericUserDecodeJson' opts'@(Options opts) sign json = fromMaybe (genericDecodeJson' opts' sign json)
                                                         (opts.userDecoding opts' sign json)
 
-
 -- | Decode `Json` representation of a `GenericSpine`.
 genericDecodeJson' :: Options -> GenericSignature -> Json -> Either String GenericSpine
 genericDecodeJson' opts'@(Options opts) signature json = case signature of
@@ -57,9 +56,14 @@ genericDecodeJson' opts'@(Options opts) signature json = case signature of
    jObj <- mFail "Expected an object" $ toObject json
    SRecord <$> for props \({recLabel: lbl, recValue: val}) -> do
      let jLabel = (opts.fieldLabelModifier lbl)
-     pf <- mFail ("'" <> jLabel <> "' property missing") (M.lookup jLabel jObj)
-     sp <- genericUserDecodeJson' opts' (val unit) pf
+     let propSig = (val unit)
+
+     pf <- if (sigIsMaybe propSig) && opts.omitNothingFields
+           then maybe (Right jsonNull) Right $ M.lookup jLabel jObj
+           else mFail ("'" <> jLabel <> "' property missing") (M.lookup jLabel jObj)
+     sp <- genericUserDecodeJson' opts' propSig pf
      pure { recLabel: lbl, recValue: const sp }
+
  SigProd typeConstr constrSigns -> genericDecodeProdJson' opts' typeConstr constrSigns json
 
 genericDecodeProdJson' :: Options ->  String -> Array DataConstructor -> Json -> Either String GenericSpine

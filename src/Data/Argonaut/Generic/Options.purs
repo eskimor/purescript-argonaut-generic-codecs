@@ -35,6 +35,9 @@ newtype Options = Options { -- newtype necessary to avoid: https://github.com/pu
 , userDecoding :: Options -> GenericSignature -> Json -> Maybe (Either String GenericSpine)
   -- | Modify a fields label, e.g. convert the case from that used remotely.
   , fieldLabelModifier :: String -> String
+  -- | If True record fields with a Nothing value will be omitted from the resulting object.
+  -- | If False the resulting object will include those fields.
+  , omitNothingFields :: Boolean
 }
 
 data SumEncoding =
