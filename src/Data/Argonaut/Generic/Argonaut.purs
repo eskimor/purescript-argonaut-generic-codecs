@@ -4,7 +4,6 @@ module Data.Argonaut.Generic.Argonaut where
 
 import Prelude
 
-import Control.Alt ((<|>))
 import Data.Argonaut.Core (Json)
 import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
 import Data.Argonaut.Generic.Encode (genericEncodeJson)
