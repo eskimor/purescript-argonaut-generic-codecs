@@ -22,7 +22,7 @@ import Data.Int (fromNumber)
 import Data.Maybe (Maybe(..), fromMaybe, maybe)
 import Data.String (toChar)
 import Data.Traversable (traverse, for)
-import Partial.Unsafe (unsafeCrashWith, unsafePartial)
+import Partial.Unsafe (unsafePartial)
 import Prelude (not, const, pure, bind, unit, map, (&&), ($), (<<<), (==), (<>), (<$>), (=<<), (||))
 import Type.Proxy (Proxy(..))
 
@@ -65,7 +65,8 @@ genericDecodeJson' opts'@(Options opts) signature json = case signature of
  SigProd typeConstr constrSigns -> genericDecodeProdJson' opts' typeConstr constrSigns json
 
 genericDecodeProdJson' :: Options ->  String -> Array DataConstructor -> Json -> Either String GenericSpine
-genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafePartial $
+genericDecodeProdJson' opts'@(Options opts@{ sumEncoding: TaggedObject sumConf }) tname constrSigns json = unsafePartial $
+    -- ^ Only TaggedObject encoding is supported - FIX ME!
   if not opts.encodeSingleConstructors && isUnaryRecord constrSigns
   then do
     let constr = Unsafe.head constrSigns
@@ -102,9 +103,6 @@ genericDecodeProdJson' opts'@(Options opts) tname constrSigns json = unsafeParti
 
     decodingErr msg = "When decoding a " <> tname <> ": " <> msg
     fixConstr      = opts.constructorTagModifier
-    sumConf = case opts.sumEncoding of
-      TaggedObject conf -> conf
-      _ -> unsafeCrashWith "Only TaggedObject encoding is supported - FIX ME!"
     tagL = sumConf.tagFieldName
     contL = sumConf.contentsFieldName
     findConstrFail tag = mFail (decodingErr ("'" <> tag <> "' isn't a valid constructor")) (findConstr tag)
