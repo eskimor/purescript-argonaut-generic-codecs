@@ -110,7 +110,7 @@ genericDecodeProdJson' opts'@(Options opts@{ sumEncoding: TaggedObject sumConf }
 
 
 mFail :: forall a. String -> Maybe a -> Either String a
-mFail msg = maybe (Left msg) Right
+mFail msg = maybe (Left ("Generic json decoding failed: " <> msg)) Right
 
 mFail' :: forall a. String -> Json -> Maybe a -> Either String a
 mFail' msg json = mFail (msg <> ": '" <> stringify json <> "'")
