@@ -12,7 +12,8 @@ module Data.Argonaut.Generic.Decode
 import Data.Argonaut.Generic.Util
 import Data.Array.Partial as Unsafe
 import Data.StrMap as M
-import Data.Argonaut.Core (Json, fromArray, fromObject, jsonNull, toArray, toBoolean, toNumber, toObject, toString)
+import Data.Argonaut.Core (Json, fromArray, fromObject, jsonNull, toArray,
+                          toBoolean, toNumber, toObject, toString, stringify)
 import Data.Argonaut.Generic.Options (Options(..), SumEncoding(..), dummyUserDecoding, dummyUserEncoding)
 import Data.Array (zipWithA, length)
 import Data.Either (Either(Right, Left))
@@ -41,28 +42,26 @@ genericUserDecodeJson' opts'@(Options opts) sign json = fromMaybe (genericDecode
 -- | Decode `Json` representation of a `GenericSpine`.
 genericDecodeJson' :: Options -> GenericSignature -> Json -> Either String GenericSpine
 genericDecodeJson' opts'@(Options opts) signature json = case signature of
- SigNumber -> SNumber <$> mFail "Expected a number" (toNumber json)
- SigInt -> SInt <$> mFail "Expected an integer number" (fromNumber =<< toNumber json)
- SigString -> SString <$> mFail "Expected a string" (toString json)
- SigChar -> SChar <$> mFail "Expected a char" (toChar =<< toString json)
- SigBoolean -> SBoolean <$> mFail "Expected a boolean" (toBoolean json)
- SigUnit -> pure SUnit
- SigArray thunk -> do
-   jArr <- mFail "Expected an array" $ toArray json
-   SArray <$> traverse (map const <<< genericUserDecodeJson' opts' (thunk unit)) jArr
- SigRecord props -> do
-   jObj <- mFail "Expected an object" $ toObject json
-   SRecord <$> for props \({recLabel: lbl, recValue: val}) -> do
-     let jLabel = (opts.fieldLabelModifier lbl)
-     let propSig = (val unit)
-
-     pf <- if (sigIsMaybe propSig) && opts.omitNothingFields
-           then maybe (Right jsonNull) Right $ M.lookup jLabel jObj
-           else mFail ("'" <> jLabel <> "' property missing") (M.lookup jLabel jObj)
-     sp <- genericUserDecodeJson' opts' propSig pf
-     pure { recLabel: lbl, recValue: const sp }
-
- SigProd typeConstr constrSigns -> genericDecodeProdJson' opts' typeConstr constrSigns json
+  SigNumber -> SNumber <$> mFail' "Expected a number" json (toNumber json)
+  SigInt -> SInt <$> mFail' "Expected an integer number" json (fromNumber =<< toNumber json)
+  SigString -> SString <$> mFail' "Expected a string" json (toString json)
+  SigChar -> SChar <$> mFail' "Expected a char" json (toChar =<< toString json)
+  SigBoolean -> SBoolean <$> mFail' "Expected a boolean" json (toBoolean json)
+  SigUnit -> pure SUnit
+  SigArray thunk -> do
+    jArr <- mFail' "Expected an array" json $ toArray json
+    SArray <$> traverse (map const <<< genericUserDecodeJson' opts' (thunk unit)) jArr
+  SigRecord props -> do
+    jObj <- mFail' "Expected an object" json $ toObject json
+    SRecord <$> for props \({recLabel: lbl, recValue: val}) -> do
+      let jLabel = (opts.fieldLabelModifier lbl)
+      let propSig = (val unit)
+      pf <- if (sigIsMaybe propSig) && opts.omitNothingFields
+            then maybe (Right jsonNull) Right $ M.lookup jLabel jObj
+            else mFail' ("'" <> jLabel <> "' property missing") json (M.lookup jLabel jObj)
+      sp <- genericUserDecodeJson' opts' propSig pf
+      pure { recLabel: lbl, recValue: const sp }
+  SigProd typeConstr constrSigns -> genericDecodeProdJson' opts' typeConstr constrSigns json
 
 genericDecodeProdJson' :: Options ->  String -> Array DataConstructor -> Json -> Either String GenericSpine
 genericDecodeProdJson' opts'@(Options opts@{ sumEncoding: TaggedObject sumConf }) tname constrSigns json = unsafePartial $
@@ -77,13 +76,13 @@ genericDecodeProdJson' opts'@(Options opts@{ sumEncoding: TaggedObject sumConf }
     else decodeTagged
   where
     decodeFromString = do
-      tag <- mFail (decodingErr "Constructor name as string expected") (toString json)
+      tag <- mFail' (decodingErr "Constructor name as string expected") json (toString json)
       foundConstr <- findConstrFail tag
       pure (SProd foundConstr.sigConstructor [])
     decodeTagged = do
-      jObj <- mFail (decodingErr "expected an object") (toObject json)
-      tagJson  <- mFail (decodingErr "'" <> tagL <> "' property is missing") (M.lookup tagL jObj)
-      tag <- mFail (decodingErr "'" <> tagL <> "' property is not a string") (toString tagJson)
+      jObj <- mFail' (decodingErr "expected an object") json (toObject json)
+      tagJson  <- mFail' (decodingErr "'" <> tagL <> "' property is missing") json (M.lookup tagL jObj)
+      tag <- mFail' (decodingErr "'" <> tagL <> "' property is not a string") json (toString tagJson)
       foundConstr <-  findConstrFail tag
       jVals <- if sumConf.unpackRecords && constructorIsRecord foundConstr
                then pure $ fromObject $ M.delete tagL jObj -- Just use the object we already have
@@ -97,7 +96,7 @@ genericDecodeProdJson' opts'@(Options opts@{ sumEncoding: TaggedObject sumConf }
     decodeConstructor constr jVals = do
       vals <- if (opts.flattenContentsArray || sumConf.unpackRecords) && (length constr.sigValues == 1)
               then pure [jVals]
-              else mFail (decodingErr "Expected array") (toArray jVals)
+              else mFail' (decodingErr "Expected array") json (toArray jVals)
       sps <- zipWithA (\k -> genericUserDecodeJson' opts' (k unit)) constr.sigValues vals
       pure (SProd constr.sigConstructor (const <$> sps))
 
@@ -111,4 +110,7 @@ genericDecodeProdJson' opts'@(Options opts@{ sumEncoding: TaggedObject sumConf }
 
 
 mFail :: forall a. String -> Maybe a -> Either String a
-mFail msg = maybe (Left msg) Right
+mFail msg = maybe (Left ("Generic json decoding failed: " <> msg)) Right
+
+mFail' :: forall a. String -> Json -> Maybe a -> Either String a
+mFail' msg json = mFail (msg <> ": '" <> stringify json <> "'")
