@@ -193,8 +193,7 @@ checkOmitNothingFields = do
   assertEquals encoded expected
 
 
-assertEquals :: forall a eff. (Eq a, Show a) =>
-  a -> a -> Eff (assert :: ASSERT | eff) Unit
+assertEquals :: forall a eff. Eq a => Show a => a -> a -> Eff (assert :: ASSERT | eff) Unit
 assertEquals a b = do
   let message = show a <> " /= " <> show b
   assert' message (a == b)
@@ -261,7 +260,7 @@ genericsCheck opts = do
   print $ genericEncodeJson opts ntw2
 
   where
-    valEncodeDecode :: forall a. (Eq a, Generic a) => Options -> a -> Boolean
+    valEncodeDecode :: forall a. Eq a => Generic a => Options -> a -> Boolean
     valEncodeDecode opts val = ((Right val) == _) <<< genericDecodeJson opts <<< genericEncodeJson opts $ val
 
 
