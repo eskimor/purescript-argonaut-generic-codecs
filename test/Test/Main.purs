@@ -31,6 +31,7 @@ import Test.Assert (assert', ASSERT)
 import Test.StrongCheck
 import Test.StrongCheck.Gen
 import Test.StrongCheck.Generic
+import Test.StrongCheck.GenericValue
 
 
 
@@ -198,7 +199,7 @@ assertEquals a b = do
   let message = show a <> " /= " <> show b
   assert' message (a == b)
 
-genericsCheck :: forall e. Options -> Eff ( err :: EXCEPTION , random :: RANDOM , console :: CONSOLE, assert :: ASSERT | e) Unit
+genericsCheck :: forall e. Options -> Eff ( exception :: EXCEPTION , random :: RANDOM , console :: CONSOLE, assert :: ASSERT | e) Unit
 genericsCheck opts = do
   let vNullary = Nullary2
   let mArgs = MArgs 9 20 "Hello"
@@ -264,7 +265,7 @@ genericsCheck opts = do
     valEncodeDecode opts val = ((Right val) == _) <<< genericDecodeJson opts <<< genericEncodeJson opts $ val
 
 
-main:: forall e. Eff ( err :: EXCEPTION, random :: RANDOM, console :: CONSOLE, assert :: ASSERT | e ) Unit
+main:: forall e. Eff ( exception :: EXCEPTION, random :: RANDOM, console :: CONSOLE, assert :: ASSERT | e ) Unit
 main = do
   log "Check Argonaut record encoding"
   checkRecordEncodingArgonaut
